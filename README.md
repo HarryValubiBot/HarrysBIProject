@@ -6,6 +6,7 @@ A browser-based BI app (Power BI style starter):
 - One-click actions: trim spaces, undo last transform, auto-detect number columns, auto visual suggestion
 - Keyboard shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Enter add transform, / focus search
 - Interactive visuals and table
+- Backend SQL query cache for snappier repeat reports
 - Minimal-click workflow with quick actions
 
 ## Run

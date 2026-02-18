@@ -50,10 +50,21 @@ const server = http.createServer(async (req, res) => {
   if (req.url === '/api/db/query' && req.method === 'POST') {
     try {
       const body = await readJson(req);
+      const cacheKey = JSON.stringify(body);
+      const cached = queryCache.get(cacheKey);
+      if (cached && Date.now() - cached.ts < 30_000) {
+        return json(res, 200, { ok: true, rows: cached.rows, sql: cached.sql, cached: true });
+      }
+
       const db = openDb(body.dbPath);
       const sql = buildAggregateSql(body);
       const rows = db.prepare(sql).all();
-      return json(res, 200, { ok: true, rows, sql });
+      queryCache.set(cacheKey, { ts: Date.now(), rows, sql });
+      if (queryCache.size > 100) {
+        const first = queryCache.keys().next().value;
+        queryCache.delete(first);
+      }
+      return json(res, 200, { ok: true, rows, sql, cached: false });
     } catch (e) {
       return json(res, 400, { ok: false, error: e.message || 'query_failed' });
     }
@@ -61,6 +72,8 @@ const server = http.createServer(async (req, res) => {
 
   return json(res, 404, { error: 'not_found' });
 });
+
+const queryCache = new Map();
 
 const PORT = Number(process.env.BI_API_PORT || 8787);
 server.listen(PORT, () => {

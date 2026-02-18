@@ -41,3 +41,11 @@ test('suggestVisual picks categorical x and numeric y', () => {
   assert.equal(s.yCol, 'sales');
   assert.equal(s.agg, 'sum');
 });
+
+test('auto_detect_numbers casts numeric-like columns', () => {
+  const rows = [{sales:'12', region:'North'},{sales:'8', region:'South'}];
+  const { data, applied } = applyTransforms(rows, [{ type: 'auto_detect_numbers' }]);
+  assert.equal(typeof data[0].sales, 'number');
+  assert.equal(data[0].region, 'North');
+  assert.equal(applied[0].type, 'auto_detect_numbers');
+});

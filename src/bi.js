@@ -114,6 +114,28 @@ export function applyTransforms(rows, transforms) {
         applied.push(t);
         break;
       }
+      case 'auto_detect_numbers': {
+        const cols = data[0] ? Object.keys(data[0]) : [];
+        const numericCols = [];
+        for (const c of cols) {
+          let valid = 0;
+          let total = 0;
+          for (const r of data) {
+            const v = r[c];
+            if (v === '' || v == null) continue;
+            total += 1;
+            if (!Number.isNaN(Number(v))) valid += 1;
+          }
+          if (total > 0 && valid / total >= 0.9) numericCols.push(c);
+        }
+        data = data.map(r => {
+          const n = { ...r };
+          for (const c of numericCols) n[c] = Number(n[c]);
+          return n;
+        });
+        applied.push({ type: 'auto_detect_numbers', columns: numericCols });
+        break;
+      }
     }
   }
 

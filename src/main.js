@@ -21,6 +21,7 @@ const els = {
   clearTransformsBtn: document.getElementById('clearTransformsBtn'),
   presetTrimBtn: document.getElementById('presetTrimBtn'),
   undoTransformBtn: document.getElementById('undoTransformBtn'),
+  optimizeTypesBtn: document.getElementById('optimizeTypesBtn'),
   appliedList: document.getElementById('appliedList'),
   searchInput: document.getElementById('searchInput'),
   dataTable: document.getElementById('dataTable'),
@@ -238,6 +239,11 @@ els.undoTransformBtn.addEventListener('click', () => {
 });
 els.presetTrimBtn.addEventListener('click', () => {
   transforms.push({ type: 'trim_spaces' });
+  currentPage = 1;
+  recomputeTransforms();
+});
+els.optimizeTypesBtn.addEventListener('click', () => {
+  transforms.push({ type: 'auto_detect_numbers' });
   currentPage = 1;
   recomputeTransforms();
 });

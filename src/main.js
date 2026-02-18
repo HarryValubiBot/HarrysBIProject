@@ -31,6 +31,7 @@ const els = {
   yCol: document.getElementById('yCol'),
   aggType: document.getElementById('aggType'),
   chartType: document.getElementById('chartType'),
+  maxPoints: document.getElementById('maxPoints'),
 };
 
 function getColumns(rows) {
@@ -119,7 +120,7 @@ function renderChart(rows) {
   if (!x || !y) return;
 
   const { labels, values } = buildChartData(rows, x, y, els.aggType.value);
-  const maxPoints = 50;
+  const maxPoints = Math.max(10, Math.min(500, Number(els.maxPoints.value || 50)));
   const trimmedLabels = labels.slice(0, maxPoints);
   const trimmedValues = values.slice(0, maxPoints);
 
@@ -223,7 +224,7 @@ els.searchInput.addEventListener('input', () => {
   }, 120);
 });
 
-[els.xCol, els.yCol, els.aggType, els.chartType].forEach(el => {
+[els.xCol, els.yCol, els.aggType, els.chartType, els.maxPoints].forEach(el => {
   el.addEventListener('change', () => renderChart(filterRows(transformedRows)));
 });
 

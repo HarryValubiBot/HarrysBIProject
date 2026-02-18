@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Harry BI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #0f1115; color: #f6f7fb; }
+      .wrap { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+      aside { padding: 16px; border-right: 1px solid #222833; background: #141923; }
+      main { padding: 16px; }
+      h1,h2,h3 { margin: 0 0 12px; }
+      .card { background: #171d29; border: 1px solid #2a3242; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+      label { font-size: 13px; opacity: .9; display: block; margin: 8px 0 4px; }
+      input,select,button { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid #323c52; background: #0f1420; color: #f6f7fb; }
+      button { cursor: pointer; background: #3a6ef7; border: none; font-weight: 600; }
+      button.secondary { background: #27324a; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .top { display:grid; grid-template-columns: 1.2fr 1fr; gap: 12px; }
+      table { width:100%; border-collapse: collapse; font-size: 13px; }
+      th,td { border-bottom: 1px solid #2a3242; padding: 8px; text-align:left; }
+      .chip { display:inline-block; padding:4px 8px; background:#24324d; border-radius:999px; margin: 0 6px 6px 0; font-size:12px; }
+      .muted { opacity: .75; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <aside>
+        <h2>Harry BI</h2>
+        <p class="muted">Low-click CSV analytics</p>
+
+        <div class="card">
+          <label>Upload CSV</label>
+          <input id="csvFile" type="file" accept=".csv" />
+        </div>
+
+        <div class="card">
+          <h3>Quick transform</h3>
+          <label>Action</label>
+          <select id="actionType">
+            <option value="rename">Rename column</option>
+            <option value="astype">Set datatype</option>
+            <option value="filter_eq">Filter equals</option>
+            <option value="filter_range">Filter range</option>
+            <option value="sort">Sort</option>
+            <option value="drop_columns">Drop columns</option>
+            <option value="derived_math">Derived math</option>
+          </select>
+          <div id="actionForm"></div>
+          <button id="addTransformBtn">Add transform</button>
+          <div style="height:8px"></div>
+          <button id="clearTransformsBtn" class="secondary">Clear all</button>
+        </div>
+
+        <div class="card">
+          <h3>Applied</h3>
+          <div id="appliedList" class="muted">None yet.</div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="top">
+          <div class="card">
+            <h3>Table</h3>
+            <label>Quick search</label>
+            <input id="searchInput" placeholder="Type to filter table..." />
+            <div style="max-height: 60vh; overflow:auto; margin-top:8px;">
+              <table id="dataTable"></table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Visual</h3>
+            <div class="row">
+              <div>
+                <label>X</label><select id="xCol"></select>
+              </div>
+              <div>
+                <label>Y</label><select id="yCol"></select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Agg</label>
+                <select id="aggType">
+                  <option>sum</option><option>mean</option><option>count</option><option>max</option><option>min</option>
+                </select>
+              </div>
+              <div>
+                <label>Chart</label>
+                <select id="chartType"><option>bar</option><option>line</option><option>scatter</option></select>
+              </div>
+            </div>
+            <canvas id="chart" height="130"></canvas>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

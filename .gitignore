@@ -1,0 +1,15 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# Python (if added later)
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log

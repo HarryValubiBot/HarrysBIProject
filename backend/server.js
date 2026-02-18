@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { openDb, listTables, listColumns, listForeignKeys } from './db.js';
+import { detectStarSchema } from './star.js';
 
 function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -38,7 +39,8 @@ const server = http.createServer(async (req, res) => {
         columns: listColumns(db, name),
         foreignKeys: listForeignKeys(db, name),
       }));
-      return json(res, 200, { ok: true, tables });
+      const star = detectStarSchema(tables);
+      return json(res, 200, { ok: true, tables, star });
     } catch (e) {
       return json(res, 400, { ok: false, error: e.message || 'introspect_failed' });
     }

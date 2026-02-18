@@ -2,7 +2,12 @@ import { parseCsv, applyTransforms, buildChartData, suggestVisual } from './bi.j
 
 let rawRows = [];
 let transforms = [];
+let transformedRows = [];
 let chart;
+let columnsSignature = '';
+let searchTimer;
+let currentPage = 1;
+const PAGE_SIZE = 100;
 
 const els = {
   file: document.getElementById('csvFile'),
@@ -15,6 +20,10 @@ const els = {
   appliedList: document.getElementById('appliedList'),
   searchInput: document.getElementById('searchInput'),
   dataTable: document.getElementById('dataTable'),
+  tableMeta: document.getElementById('tableMeta'),
+  prevPageBtn: document.getElementById('prevPageBtn'),
+  nextPageBtn: document.getElementById('nextPageBtn'),
+  pageInfo: document.getElementById('pageInfo'),
   autoVisualBtn: document.getElementById('autoVisualBtn'),
   xCol: document.getElementById('xCol'),
   yCol: document.getElementById('yCol'),
@@ -69,30 +78,56 @@ function numOrNull(id){ const x=v(id); return x === '' ? null : Number(x); }
 
 function renderApplied(applied) {
   els.appliedList.innerHTML = applied.length
-    ? applied.map(a => `<span class="chip">${a.type}</span>`).join('')
+    ? applied.map((a, i) => `<span class="chip">${i+1}. ${a.type}</span>`).join('')
     : '<span class="muted">None yet.</span>';
 }
 
-function renderTable(rows) {
+function filterRows(rows) {
   const search = els.searchInput.value.trim().toLowerCase();
-  const filtered = !search ? rows : rows.filter(r => Object.values(r).some(x => String(x).toLowerCase().includes(search)));
+  if (!search) return rows;
+  return rows.filter(r => Object.values(r).some(x => String(x).toLowerCase().includes(search)));
+}
+
+function renderTable(rows) {
+  const filtered = filterRows(rows);
   const cols = getColumns(filtered.length ? filtered : rows);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
   const head = `<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
-  const body = filtered.slice(0, 1000).map(r => `<tr>${cols.map(c=>`<td>${r[c] ?? ''}</td>`).join('')}</tr>`).join('');
+  const body = pageRows.map(r => `<tr>${cols.map(c=>`<td>${r[c] ?? ''}</td>`).join('')}</tr>`).join('');
   els.dataTable.innerHTML = head + body;
+
+  els.tableMeta.textContent = `Rows: ${filtered.length} (showing ${pageRows.length})`;
+  els.pageInfo.textContent = `Page ${currentPage} / ${totalPages}`;
+  els.prevPageBtn.disabled = currentPage <= 1;
+  els.nextPageBtn.disabled = currentPage >= totalPages;
 }
 
 function renderChart(rows) {
   const x = els.xCol.value;
   const y = els.yCol.value;
   if (!x || !y) return;
+
   const { labels, values } = buildChartData(rows, x, y, els.aggType.value);
+  const maxPoints = 50;
+  const trimmedLabels = labels.slice(0, maxPoints);
+  const trimmedValues = values.slice(0, maxPoints);
+
   const ctx = document.getElementById('chart');
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: els.chartType.value,
-    data: { labels, datasets: [{ label: `${els.aggType.value}(${y})`, data: values }] },
-    options: { responsive: true, maintainAspectRatio: false }
+    data: { labels: trimmedLabels, datasets: [{ label: `${els.aggType.value}(${y})`, data: trimmedValues }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: { legend: { display: true } }
+    }
   });
 }
 
@@ -105,20 +140,29 @@ function applyVisualSuggestion(rows) {
   els.chartType.value = s.chartType;
 }
 
-function refresh() {
-  const { data, applied } = applyTransforms(rawRows, transforms);
-  renderApplied(applied);
-  renderTable(data);
+function syncChartSelectors(cols) {
+  const sig = cols.join('|');
+  if (sig === columnsSignature) return;
+  columnsSignature = sig;
 
-  const cols = getColumns(data);
   [els.xCol, els.yCol].forEach(sel => {
     const current = sel.value;
     sel.innerHTML = cols.map(c => `<option>${c}</option>`).join('');
     if (cols.includes(current)) sel.value = current;
   });
+}
 
-  if (!els.xCol.value || !els.yCol.value) applyVisualSuggestion(data);
-  renderChart(data);
+function recomputeTransforms() {
+  const t0 = performance.now();
+  const { data, applied } = applyTransforms(rawRows, transforms);
+  transformedRows = data;
+  renderApplied(applied);
+  syncChartSelectors(getColumns(transformedRows));
+  if (!els.xCol.value || !els.yCol.value) applyVisualSuggestion(transformedRows);
+  renderTable(transformedRows);
+  renderChart(transformedRows);
+  const ms = Math.round(performance.now() - t0);
+  els.tableMeta.textContent += ` • transform ${ms}ms`;
 }
 
 function refreshForm() {
@@ -130,31 +174,56 @@ els.file.addEventListener('change', async (e) => {
   if (!file) return;
   rawRows = parseCsv(await file.text());
   transforms = [];
+  transformedRows = rawRows;
+  currentPage = 1;
+  columnsSignature = '';
   refreshForm();
-  refresh();
+  recomputeTransforms();
 });
 
 els.actionType.addEventListener('change', refreshForm);
 els.addTransformBtn.addEventListener('click', () => {
   transforms.push(getTransformFromForm(els.actionType.value));
-  refresh();
+  currentPage = 1;
+  recomputeTransforms();
 });
-els.clearTransformsBtn.addEventListener('click', () => { transforms = []; refresh(); });
+els.clearTransformsBtn.addEventListener('click', () => {
+  transforms = [];
+  currentPage = 1;
+  recomputeTransforms();
+});
 els.undoTransformBtn.addEventListener('click', () => {
   transforms.pop();
-  refresh();
+  currentPage = 1;
+  recomputeTransforms();
 });
 els.presetTrimBtn.addEventListener('click', () => {
   transforms.push({ type: 'trim_spaces' });
-  refresh();
+  currentPage = 1;
+  recomputeTransforms();
 });
 els.autoVisualBtn.addEventListener('click', () => {
-  const { data } = applyTransforms(rawRows, transforms);
-  applyVisualSuggestion(data);
-  renderChart(data);
+  applyVisualSuggestion(transformedRows);
+  renderChart(transformedRows);
 });
-els.searchInput.addEventListener('input', refresh);
-els.xCol.addEventListener('change', refresh);
-els.yCol.addEventListener('change', refresh);
-els.aggType.addEventListener('change', refresh);
-els.chartType.addEventListener('change', refresh);
+els.searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentPage = 1;
+    renderTable(transformedRows);
+    renderChart(filterRows(transformedRows));
+  }, 120);
+});
+
+[els.xCol, els.yCol, els.aggType, els.chartType].forEach(el => {
+  el.addEventListener('change', () => renderChart(filterRows(transformedRows)));
+});
+
+els.prevPageBtn.addEventListener('click', () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderTable(transformedRows);
+});
+els.nextPageBtn.addEventListener('click', () => {
+  currentPage += 1;
+  renderTable(transformedRows);
+});

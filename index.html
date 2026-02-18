@@ -22,6 +22,10 @@
       th,td { border-bottom: 1px solid #2a3242; padding: 8px; text-align:left; }
       .chip { display:inline-block; padding:4px 8px; background:#24324d; border-radius:999px; margin: 0 6px 6px 0; font-size:12px; }
       .muted { opacity: .75; font-size: 13px; }
+      #chartWrap { height: 420px; max-height: 420px; overflow: hidden; position: relative; }
+      .tiny { font-size: 12px; opacity: .75; }
+      .pager { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+      .pager button { width: auto; padding: 6px 10px; }
     </style>
   </head>
   <body>
@@ -70,8 +74,14 @@
             <h3>Table</h3>
             <label>Quick search</label>
             <input id="searchInput" placeholder="Type to filter table..." />
+            <div id="tableMeta" class="tiny" style="margin-top:6px;">Rows: 0</div>
             <div style="max-height: 60vh; overflow:auto; margin-top:8px;">
               <table id="dataTable"></table>
+            </div>
+            <div class="pager">
+              <button id="prevPageBtn" class="secondary">Prev</button>
+              <span id="pageInfo" class="tiny">Page 1</span>
+              <button id="nextPageBtn" class="secondary">Next</button>
             </div>
           </div>
 
@@ -98,7 +108,7 @@
                 <select id="chartType"><option>bar</option><option>line</option><option>scatter</option></select>
               </div>
             </div>
-            <canvas id="chart" height="130"></canvas>
+            <div id="chartWrap"><canvas id="chart"></canvas></div>
           </div>
         </div>
       </main>

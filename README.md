@@ -7,6 +7,7 @@ A browser-based BI app (Power BI style starter):
 - Keyboard shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Enter add transform, / focus search
 - Interactive visuals and table
 - Backend SQL query cache for snappier repeat reports
+- Saved report definitions (without storing Azure password)
 - Minimal-click workflow with quick actions
 
 ## Run

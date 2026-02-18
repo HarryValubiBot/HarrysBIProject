@@ -104,10 +104,17 @@
             <label>Dimension label column</label><select id="dimLabelCol"></select>
             <label>Measure column (from fact)</label><select id="factMeasureCol"></select>
             <label>Aggregation</label><select id="dbAgg"><option>SUM</option><option>AVG</option><option>COUNT</option><option>MAX</option><option>MIN</option></select>
+            <label>Saved report name</label><input id="reportName" placeholder="e.g. Sales by region" />
             <div class="row">
-              <button id="autoDbReportBtn" class="secondary">Auto DB report</button>
-              <button id="runDbReportBtn">Run DB report</button>
+              <button id="saveReportBtn" class="secondary">Save report</button>
+              <button id="deleteReportBtn" class="secondary">Delete report</button>
             </div>
+            <label>Load saved report</label><select id="savedReportSelect"></select>
+            <div class="row">
+              <button id="loadReportBtn" class="secondary">Load report</button>
+              <button id="autoDbReportBtn" class="secondary">Auto DB report</button>
+            </div>
+            <button id="runDbReportBtn">Run DB report</button>
           </div>
           <div class="card">
             <h3>Table</h3>

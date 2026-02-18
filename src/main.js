@@ -33,6 +33,11 @@ const els = {
   dimLabelCol: document.getElementById('dimLabelCol'),
   factMeasureCol: document.getElementById('factMeasureCol'),
   dbAgg: document.getElementById('dbAgg'),
+  reportName: document.getElementById('reportName'),
+  saveReportBtn: document.getElementById('saveReportBtn'),
+  deleteReportBtn: document.getElementById('deleteReportBtn'),
+  savedReportSelect: document.getElementById('savedReportSelect'),
+  loadReportBtn: document.getElementById('loadReportBtn'),
   autoDbReportBtn: document.getElementById('autoDbReportBtn'),
   runDbReportBtn: document.getElementById('runDbReportBtn'),
   actionType: document.getElementById('actionType'),
@@ -248,6 +253,50 @@ function refreshConnFields() {
   els.sqliteFields.style.display = azure ? 'none' : 'block';
 }
 
+const REPORTS_KEY = 'harry_bi_saved_reports_v1';
+
+function getSavedReports() {
+  try { return JSON.parse(localStorage.getItem(REPORTS_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function setSavedReports(obj) {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(obj));
+}
+
+function refreshSavedReportsDropdown() {
+  const reports = getSavedReports();
+  const names = Object.keys(reports).sort();
+  els.savedReportSelect.innerHTML = names.length
+    ? names.map(n => `<option>${n}</option>`).join('')
+    : '<option value="">(none)</option>';
+}
+
+function currentReportConfig() {
+  return {
+    connType: els.connType.value,
+    dbPath: els.dbPath.value.trim(),
+    factTable: els.factTable.value,
+    dimTable: els.dimTable.value,
+    dimLabelCol: els.dimLabelCol.value,
+    factMeasureCol: els.factMeasureCol.value,
+    dbAgg: els.dbAgg.value,
+  };
+}
+
+function applyReportConfig(cfg) {
+  if (!cfg) return;
+  if (cfg.connType) els.connType.value = cfg.connType;
+  refreshConnFields();
+  if (cfg.dbPath) els.dbPath.value = cfg.dbPath;
+  if (cfg.factTable) els.factTable.value = cfg.factTable;
+  if (cfg.dimTable) els.dimTable.value = cfg.dimTable;
+  populateModelSelectors();
+  if (cfg.dimLabelCol) els.dimLabelCol.value = cfg.dimLabelCol;
+  if (cfg.factMeasureCol) els.factMeasureCol.value = cfg.factMeasureCol;
+  if (cfg.dbAgg) els.dbAgg.value = cfg.dbAgg;
+}
+
 function tableByName(name) {
   return starTables.find(t => t.name === name);
 }
@@ -378,6 +427,29 @@ els.nextPageBtn.addEventListener('click', () => {
 
 els.factTable.addEventListener('change', populateModelSelectors);
 els.dimTable.addEventListener('change', populateModelSelectors);
+refreshSavedReportsDropdown();
+els.saveReportBtn.addEventListener('click', () => {
+  const name = els.reportName.value.trim();
+  if (!name) return;
+  const all = getSavedReports();
+  all[name] = currentReportConfig();
+  setSavedReports(all);
+  refreshSavedReportsDropdown();
+  els.savedReportSelect.value = name;
+});
+els.loadReportBtn.addEventListener('click', () => {
+  const name = els.savedReportSelect.value;
+  const all = getSavedReports();
+  applyReportConfig(all[name]);
+});
+els.deleteReportBtn.addEventListener('click', () => {
+  const name = els.savedReportSelect.value;
+  if (!name) return;
+  const all = getSavedReports();
+  delete all[name];
+  setSavedReports(all);
+  refreshSavedReportsDropdown();
+});
 els.runDbReportBtn.addEventListener('click', async () => {
   try { await runDbReport(); } catch (e) { els.dbStatus.textContent = `Error: ${e.message}`; }
 });

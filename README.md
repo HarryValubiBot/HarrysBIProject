@@ -16,6 +16,22 @@ python3 -m http.server 8080
 # then open http://localhost:8080
 ```
 
+## Backend (for SQL star schema)
+
+```bash
+cd bi_app_web
+node backend/server.js
+# API at http://localhost:8787
+```
+
+## Demo star-schema DB
+
+```bash
+cd bi_app_web
+node scripts/create_star_schema.js
+# creates data/star_demo.db
+```
+
 ## Test
 
 ```bash

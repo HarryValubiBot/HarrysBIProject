@@ -4,6 +4,7 @@ let rawRows = [];
 let transforms = [];
 let transformedRows = [];
 let chart;
+let chart2;
 let starTables = [];
 let starMeta = null;
 let columnsSignature = '';
@@ -60,6 +61,7 @@ const els = {
   yCol: document.getElementById('yCol'),
   aggType: document.getElementById('aggType'),
   chartType: document.getElementById('chartType'),
+  chartType2: document.getElementById('chartType2'),
   maxPoints: document.getElementById('maxPoints'),
 };
 
@@ -172,6 +174,19 @@ function renderChart(rows) {
         currentPage = 1;
         renderTable(transformedRows);
       }
+    }
+  });
+
+  const ctx2 = document.getElementById('chart2');
+  if (chart2) chart2.destroy();
+  chart2 = new Chart(ctx2, {
+    type: els.chartType2.value,
+    data: { labels: trimmedLabels, datasets: [{ label: `Secondary ${els.aggType.value}(${y})`, data: trimmedValues }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: true } },
     }
   });
 }
@@ -412,7 +427,7 @@ els.searchInput.addEventListener('input', () => {
   }, 120);
 });
 
-[els.xCol, els.yCol, els.aggType, els.chartType, els.maxPoints].forEach(el => {
+[els.xCol, els.yCol, els.aggType, els.chartType, els.chartType2, els.maxPoints].forEach(el => {
   el.addEventListener('change', () => renderChart(filterRows(transformedRows)));
 });
 

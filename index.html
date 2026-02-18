@@ -22,7 +22,7 @@
       th,td { border-bottom: 1px solid #2a3242; padding: 8px; text-align:left; }
       .chip { display:inline-block; padding:4px 8px; background:#24324d; border-radius:999px; margin: 0 6px 6px 0; font-size:12px; }
       .muted { opacity: .75; font-size: 13px; }
-      #chartWrap { height: 420px; max-height: 420px; overflow: hidden; position: relative; }
+      #chartWrap, #chartWrap2 { height: 260px; max-height: 260px; overflow: hidden; position: relative; }
       .tiny { font-size: 12px; opacity: .75; }
       .pager { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
       .pager button { width: auto; padding: 6px 10px; }
@@ -159,7 +159,10 @@
             </div>
             <label>Max points</label>
             <input id="maxPoints" type="number" value="50" min="10" max="500" step="10" />
+            <label>Secondary chart</label>
+            <select id="chartType2"><option>line</option><option>bar</option><option>scatter</option></select>
             <div id="chartWrap"><canvas id="chart"></canvas></div>
+            <div id="chartWrap2" style="margin-top:8px;"><canvas id="chart2"></canvas></div>
           </div>
         </div>
       </main>

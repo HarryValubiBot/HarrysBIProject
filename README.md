@@ -8,6 +8,7 @@ A browser-based BI app (Power BI style starter):
 - Interactive visuals and table
 - Backend SQL query cache for snappier repeat reports
 - Saved report definitions (without storing Azure password)
+- Dual-visual dashboard view (primary + secondary chart)
 - Minimal-click workflow with quick actions
 
 ## Run

@@ -15,6 +15,10 @@ let rawVersion = 0;
 
 const els = {
   file: document.getElementById('csvFile'),
+  dbPath: document.getElementById('dbPath'),
+  connectDbBtn: document.getElementById('connectDbBtn'),
+  dbStatus: document.getElementById('dbStatus'),
+  starSummary: document.getElementById('starSummary'),
   actionType: document.getElementById('actionType'),
   actionForm: document.getElementById('actionForm'),
   addTransformBtn: document.getElementById('addTransformBtn'),
@@ -277,6 +281,24 @@ els.prevPageBtn.addEventListener('click', () => {
 els.nextPageBtn.addEventListener('click', () => {
   currentPage += 1;
   renderTable(transformedRows);
+});
+
+els.connectDbBtn.addEventListener('click', async () => {
+  try {
+    els.dbStatus.textContent = 'Connecting...';
+    const r = await fetch('http://localhost:8787/api/db/introspect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dbPath: els.dbPath.value.trim() }),
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'connect_failed');
+    const star = j.star || { facts: [], dimensions: [], relationships: [] };
+    els.dbStatus.textContent = `Connected: ${j.tables.length} tables`;
+    els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
+  } catch (e) {
+    els.dbStatus.textContent = `Error: ${e.message}`;
+  }
 });
 
 document.addEventListener('keydown', (e) => {

@@ -40,6 +40,14 @@
         </div>
 
         <div class="card">
+          <h3>SQL Star Schema</h3>
+          <label>SQLite DB path</label>
+          <input id="dbPath" placeholder="/abs/path/to/star_demo.db" />
+          <button id="connectDbBtn" class="secondary">Connect DB</button>
+          <div id="dbStatus" class="tiny" style="margin-top:6px;">Not connected.</div>
+        </div>
+
+        <div class="card">
           <h3>Quick transform</h3>
           <label>One-click actions</label>
           <div class="row">
@@ -72,6 +80,10 @@
 
       <main>
         <div class="top">
+          <div class="card">
+            <h3>Model</h3>
+            <div id="starSummary" class="tiny">No star schema loaded.</div>
+          </div>
           <div class="card">
             <h3>Table</h3>
             <label>Quick search</label>

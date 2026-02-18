@@ -25,6 +25,18 @@ node backend/server.js
 # API at http://localhost:8787
 ```
 
+## Quick start (web + API)
+
+```bash
+cd bi_app_web
+chmod +x scripts/run_all.sh
+./scripts/run_all.sh
+```
+
+Then in UI set DB path to:
+`/home/jonathan/.openclaw/workspace/bi_app_web/data/star_demo.db`
+and click **Connect DB** → **Auto DB report**.
+
 ## Demo star-schema DB
 
 ```bash

@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "serve:web": "python3 -m http.server 8080",
+    "serve:api": "node backend/server.js",
+    "demo:db": "node scripts/create_star_schema.js"
   }
 }

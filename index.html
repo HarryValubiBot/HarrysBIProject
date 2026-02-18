@@ -88,7 +88,10 @@
             <label>Dimension label column</label><select id="dimLabelCol"></select>
             <label>Measure column (from fact)</label><select id="factMeasureCol"></select>
             <label>Aggregation</label><select id="dbAgg"><option>SUM</option><option>AVG</option><option>COUNT</option><option>MAX</option><option>MIN</option></select>
-            <button id="runDbReportBtn">Run DB report</button>
+            <div class="row">
+              <button id="autoDbReportBtn" class="secondary">Auto DB report</button>
+              <button id="runDbReportBtn">Run DB report</button>
+            </div>
           </div>
           <div class="card">
             <h3>Table</h3>

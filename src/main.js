@@ -26,6 +26,7 @@ const els = {
   dimLabelCol: document.getElementById('dimLabelCol'),
   factMeasureCol: document.getElementById('factMeasureCol'),
   dbAgg: document.getElementById('dbAgg'),
+  autoDbReportBtn: document.getElementById('autoDbReportBtn'),
   runDbReportBtn: document.getElementById('runDbReportBtn'),
   actionType: document.getElementById('actionType'),
   actionForm: document.getElementById('actionForm'),
@@ -229,8 +230,46 @@ function populateModelSelectors() {
 
   const dim = tableByName(els.dimTable.value);
   const fact = tableByName(els.factTable.value);
-  els.dimLabelCol.innerHTML = (dim?.columns || []).map(c => `<option>${c.name}</option>`).join('');
-  els.factMeasureCol.innerHTML = (fact?.columns || []).map(c => `<option>${c.name}</option>`).join('');
+  const dimCols = dim?.columns || [];
+  const factCols = fact?.columns || [];
+  els.dimLabelCol.innerHTML = dimCols.map(c => `<option>${c.name}</option>`).join('');
+  els.factMeasureCol.innerHTML = factCols.map(c => `<option>${c.name}</option>`).join('');
+
+  const dimNameCol = dimCols.find(c => /name|label|title/i.test(c.name));
+  if (dimNameCol) els.dimLabelCol.value = dimNameCol.name;
+  const factNumCol = factCols.find(c => /int|real|num|dec|float|double/i.test(String(c.type || '')) || /amount|sales|cost|qty|value/i.test(c.name));
+  if (factNumCol) els.factMeasureCol.value = factNumCol.name;
+}
+
+async function runDbReport() {
+  if (!starMeta) throw new Error('connect_to_db_first');
+  const rel = (starMeta.relationships || []).find(r => r.fromTable === els.factTable.value && r.toTable === els.dimTable.value);
+  if (!rel) throw new Error('no_fact_dim_relationship_found');
+  const r = await fetch('http://localhost:8787/api/db/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      dbPath: els.dbPath.value.trim(),
+      factTable: els.factTable.value,
+      dimTable: els.dimTable.value,
+      dimJoinFrom: rel.fromColumn,
+      dimJoinTo: rel.toColumn,
+      xColumn: els.dimLabelCol.value,
+      yColumn: els.factMeasureCol.value,
+      agg: els.dbAgg.value,
+    }),
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'db_report_failed');
+
+  transformedRows = j.rows.map(x => ({ label: x.label, value: x.value }));
+  columnsSignature = '';
+  syncChartSelectors(['label', 'value']);
+  els.xCol.value = 'label';
+  els.yCol.value = 'value';
+  els.aggType.value = 'sum';
+  renderTable(transformedRows);
+  renderChart(transformedRows);
 }
 
 els.file.addEventListener('change', async (e) => {
@@ -309,35 +348,17 @@ els.nextPageBtn.addEventListener('click', () => {
 els.factTable.addEventListener('change', populateModelSelectors);
 els.dimTable.addEventListener('change', populateModelSelectors);
 els.runDbReportBtn.addEventListener('click', async () => {
+  try { await runDbReport(); } catch (e) { els.dbStatus.textContent = `Error: ${e.message}`; }
+});
+els.autoDbReportBtn.addEventListener('click', async () => {
   try {
     if (!starMeta) throw new Error('connect_to_db_first');
-    const rel = (starMeta.relationships || []).find(r => r.fromTable === els.factTable.value && r.toTable === els.dimTable.value);
-    if (!rel) throw new Error('no_fact_dim_relationship_found');
-    const r = await fetch('http://localhost:8787/api/db/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dbPath: els.dbPath.value.trim(),
-        factTable: els.factTable.value,
-        dimTable: els.dimTable.value,
-        dimJoinFrom: rel.fromColumn,
-        dimJoinTo: rel.toColumn,
-        xColumn: els.dimLabelCol.value,
-        yColumn: els.factMeasureCol.value,
-        agg: els.dbAgg.value,
-      }),
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'db_report_failed');
-
-    transformedRows = j.rows.map(x => ({ label: x.label, value: x.value }));
-    columnsSignature = '';
-    syncChartSelectors(['label', 'value']);
-    els.xCol.value = 'label';
-    els.yCol.value = 'value';
-    els.aggType.value = 'sum';
-    renderTable(transformedRows);
-    renderChart(transformedRows);
+    const rel = starMeta.relationships?.[0];
+    if (!rel) throw new Error('no_relationships_found');
+    els.factTable.value = rel.fromTable;
+    els.dimTable.value = rel.toTable;
+    populateModelSelectors();
+    await runDbReport();
   } catch (e) {
     els.dbStatus.textContent = `Error: ${e.message}`;
   }

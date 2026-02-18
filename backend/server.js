@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { openDb, listTables, listColumns, listForeignKeys } from './db.js';
 import { detectStarSchema } from './star.js';
+import { buildAggregateSql } from './query.js';
 
 function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -43,6 +44,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, tables, star });
     } catch (e) {
       return json(res, 400, { ok: false, error: e.message || 'introspect_failed' });
+    }
+  }
+
+  if (req.url === '/api/db/query' && req.method === 'POST') {
+    try {
+      const body = await readJson(req);
+      const db = openDb(body.dbPath);
+      const sql = buildAggregateSql(body);
+      const rows = db.prepare(sql).all();
+      return json(res, 200, { ok: true, rows, sql });
+    } catch (e) {
+      return json(res, 400, { ok: false, error: e.message || 'query_failed' });
     }
   }
 

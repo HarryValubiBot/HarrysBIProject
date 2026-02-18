@@ -27,6 +27,8 @@ const els = {
   azUser: document.getElementById('azUser'),
   azPassword: document.getElementById('azPassword'),
   connectDbBtn: document.getElementById('connectDbBtn'),
+  toggleConnBtn: document.getElementById('toggleConnBtn'),
+  connDetails: document.getElementById('connDetails'),
   dbStatus: document.getElementById('dbStatus'),
   starSummary: document.getElementById('starSummary'),
   factTable: document.getElementById('factTable'),
@@ -63,6 +65,10 @@ const els = {
   chartType: document.getElementById('chartType'),
   chartType2: document.getElementById('chartType2'),
   maxPoints: document.getElementById('maxPoints'),
+  viewTransformBtn: document.getElementById('viewTransformBtn'),
+  viewVisualBtn: document.getElementById('viewVisualBtn'),
+  transformSection: document.getElementById('transformSection'),
+  visualSection: document.getElementById('visualSection'),
 };
 
 function getColumns(rows) {
@@ -268,6 +274,20 @@ function refreshConnFields() {
   els.sqliteFields.style.display = azure ? 'none' : 'block';
 }
 
+function setView(mode) {
+  const transform = mode === 'transform';
+  els.transformSection.classList.toggle('hidden', !transform);
+  els.visualSection.classList.toggle('hidden', transform);
+  els.viewTransformBtn.classList.toggle('active', transform);
+  els.viewVisualBtn.classList.toggle('active', !transform);
+}
+
+function setConnectionCollapsed(collapsed) {
+  els.connDetails.classList.toggle('hidden', collapsed);
+  els.toggleConnBtn.classList.toggle('hidden', false);
+  els.toggleConnBtn.textContent = collapsed ? 'Edit connection' : 'Hide connection details';
+}
+
 const REPORTS_KEY = 'harry_bi_saved_reports_v1';
 
 function getSavedReports() {
@@ -381,7 +401,14 @@ els.file.addEventListener('change', async (e) => {
 });
 
 refreshConnFields();
+setView('transform');
 els.connType.addEventListener('change', refreshConnFields);
+els.viewTransformBtn.addEventListener('click', () => setView('transform'));
+els.viewVisualBtn.addEventListener('click', () => setView('visual'));
+els.toggleConnBtn.addEventListener('click', () => {
+  const isHidden = els.connDetails.classList.contains('hidden');
+  setConnectionCollapsed(!isHidden);
+});
 els.actionType.addEventListener('change', refreshForm);
 els.addTransformBtn.addEventListener('click', () => {
   transforms.push(getTransformFromForm(els.actionType.value));
@@ -498,8 +525,18 @@ els.connectDbBtn.addEventListener('click', async () => {
     els.dbStatus.textContent = `Connected: ${j.tables.length} tables`;
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
+    setConnectionCollapsed(true);
+    if (star.relationships?.length) {
+      const rel = star.relationships[0];
+      els.factTable.value = rel.fromTable;
+      els.dimTable.value = rel.toTable;
+      populateModelSelectors();
+      await runDbReport();
+      setView('visual');
+    }
   } catch (e) {
     els.dbStatus.textContent = `Error: ${e.message}`;
+    setConnectionCollapsed(false);
   }
 });
 

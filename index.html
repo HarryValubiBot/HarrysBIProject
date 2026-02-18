@@ -17,7 +17,7 @@
       button { cursor: pointer; background: #3a6ef7; border: none; font-weight: 600; }
       button.secondary { background: #27324a; }
       .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .top { display:grid; grid-template-columns: 1.2fr 1fr; gap: 12px; }
+      .top { display:grid; grid-template-columns: 1fr; gap: 12px; }
       table { width:100%; border-collapse: collapse; font-size: 13px; }
       th,td { border-bottom: 1px solid #2a3242; padding: 8px; text-align:left; }
       .chip { display:inline-block; padding:4px 8px; background:#24324d; border-radius:999px; margin: 0 6px 6px 0; font-size:12px; }
@@ -26,6 +26,9 @@
       .tiny { font-size: 12px; opacity: .75; }
       .pager { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
       .pager button { width: auto; padding: 6px 10px; }
+      .viewbar { display:flex; gap:8px; margin-bottom:12px; }
+      .viewbar button.active { background:#4b7cff; }
+      .hidden { display:none !important; }
     </style>
   </head>
   <body>
@@ -59,7 +62,10 @@
             <label>Password</label><input id="azPassword" type="password" />
           </div>
 
-          <button id="connectDbBtn" class="secondary">Connect DB</button>
+          <div id="connDetails">
+            <button id="connectDbBtn" class="secondary">Connect DB</button>
+          </div>
+          <button id="toggleConnBtn" class="secondary hidden" style="margin-top:8px;">Edit connection</button>
           <div id="dbStatus" class="tiny" style="margin-top:6px;">Not connected.</div>
         </div>
 
@@ -95,6 +101,10 @@
       </aside>
 
       <main>
+        <div class="viewbar">
+          <button id="viewTransformBtn" class="active">Transform</button>
+          <button id="viewVisualBtn" class="secondary">Visualize</button>
+        </div>
         <div class="top">
           <div class="card">
             <h3>Model</h3>
@@ -116,7 +126,7 @@
             </div>
             <button id="runDbReportBtn">Run DB report</button>
           </div>
-          <div class="card">
+          <div id="transformSection" class="card">
             <h3>Table</h3>
             <label>Quick search</label>
             <input id="searchInput" placeholder="Type to filter table..." />
@@ -131,7 +141,7 @@
             </div>
           </div>
 
-          <div class="card">
+          <div id="visualSection" class="card hidden">
             <h3>Visual</h3>
             <div class="row">
               <button id="autoVisualBtn" class="secondary">Auto visual suggestion</button>

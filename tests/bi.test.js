@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsv, applyTransforms, buildChartData } from '../src/bi.js';
+import { parseCsv, applyTransforms, buildChartData, suggestVisual } from '../src/bi.js';
 
 test('parseCsv basic', () => {
   const rows = parseCsv('a,b\n1,x\n2,y');
@@ -25,4 +25,19 @@ test('buildChartData sum', () => {
   const map = Object.fromEntries(out.labels.map((k,i)=>[k,out.values[i]]));
   assert.equal(map.A, 3);
   assert.equal(map.B, 5);
+});
+
+test('trim_spaces transform', () => {
+  const rows = [{name:'  Alice  ', amt:' 10 '}];
+  const { data } = applyTransforms(rows, [{ type: 'trim_spaces' }]);
+  assert.equal(data[0].name, 'Alice');
+  assert.equal(data[0].amt, '10');
+});
+
+test('suggestVisual picks categorical x and numeric y', () => {
+  const rows = [{region:'North',sales:'12'},{region:'South',sales:'8'}];
+  const s = suggestVisual(rows);
+  assert.equal(s.xCol, 'region');
+  assert.equal(s.yCol, 'sales');
+  assert.equal(s.agg, 'sum');
 });

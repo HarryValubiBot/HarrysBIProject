@@ -1,4 +1,4 @@
-import { parseCsv, applyTransforms, buildChartData } from './bi.js';
+import { parseCsv, applyTransforms, buildChartData, suggestVisual } from './bi.js';
 
 let rawRows = [];
 let transforms = [];
@@ -10,9 +10,12 @@ const els = {
   actionForm: document.getElementById('actionForm'),
   addTransformBtn: document.getElementById('addTransformBtn'),
   clearTransformsBtn: document.getElementById('clearTransformsBtn'),
+  presetTrimBtn: document.getElementById('presetTrimBtn'),
+  undoTransformBtn: document.getElementById('undoTransformBtn'),
   appliedList: document.getElementById('appliedList'),
   searchInput: document.getElementById('searchInput'),
   dataTable: document.getElementById('dataTable'),
+  autoVisualBtn: document.getElementById('autoVisualBtn'),
   xCol: document.getElementById('xCol'),
   yCol: document.getElementById('yCol'),
   aggType: document.getElementById('aggType'),
@@ -93,6 +96,15 @@ function renderChart(rows) {
   });
 }
 
+function applyVisualSuggestion(rows) {
+  const s = suggestVisual(rows);
+  if (!s.xCol || !s.yCol) return;
+  if ([...els.xCol.options].some(o => o.value === s.xCol)) els.xCol.value = s.xCol;
+  if ([...els.yCol.options].some(o => o.value === s.yCol)) els.yCol.value = s.yCol;
+  els.aggType.value = s.agg;
+  els.chartType.value = s.chartType;
+}
+
 function refresh() {
   const { data, applied } = applyTransforms(rawRows, transforms);
   renderApplied(applied);
@@ -104,6 +116,8 @@ function refresh() {
     sel.innerHTML = cols.map(c => `<option>${c}</option>`).join('');
     if (cols.includes(current)) sel.value = current;
   });
+
+  if (!els.xCol.value || !els.yCol.value) applyVisualSuggestion(data);
   renderChart(data);
 }
 
@@ -126,6 +140,19 @@ els.addTransformBtn.addEventListener('click', () => {
   refresh();
 });
 els.clearTransformsBtn.addEventListener('click', () => { transforms = []; refresh(); });
+els.undoTransformBtn.addEventListener('click', () => {
+  transforms.pop();
+  refresh();
+});
+els.presetTrimBtn.addEventListener('click', () => {
+  transforms.push({ type: 'trim_spaces' });
+  refresh();
+});
+els.autoVisualBtn.addEventListener('click', () => {
+  const { data } = applyTransforms(rawRows, transforms);
+  applyVisualSuggestion(data);
+  renderChart(data);
+});
 els.searchInput.addEventListener('input', refresh);
 els.xCol.addEventListener('change', refresh);
 els.yCol.addEventListener('change', refresh);

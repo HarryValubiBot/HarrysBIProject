@@ -103,6 +103,17 @@ export function applyTransforms(rows, transforms) {
         applied.push(t);
         break;
       }
+      case 'trim_spaces': {
+        data = data.map(r => {
+          const n = {};
+          for (const [k, v] of Object.entries(r)) {
+            n[k] = typeof v === 'string' ? v.trim() : v;
+          }
+          return n;
+        });
+        applied.push(t);
+        break;
+      }
     }
   }
 
@@ -135,4 +146,35 @@ export function buildChartData(rows, xCol, yCol, agg='sum') {
     else values.push(v.reduce((a,b)=>a+b,0));
   }
   return { labels, values };
+}
+
+export function detectColumnTypes(rows) {
+  if (!rows.length) return { numeric: [], categorical: [] };
+  const cols = Object.keys(rows[0]);
+  const numeric = [];
+  const categorical = [];
+
+  for (const c of cols) {
+    let numCount = 0;
+    let total = 0;
+    for (const r of rows) {
+      const v = r[c];
+      if (v === '' || v == null) continue;
+      total += 1;
+      if (!Number.isNaN(Number(v))) numCount += 1;
+    }
+    if (total > 0 && numCount / total >= 0.8) numeric.push(c);
+    else categorical.push(c);
+  }
+  return { numeric, categorical };
+}
+
+export function suggestVisual(rows) {
+  const { numeric, categorical } = detectColumnTypes(rows);
+  return {
+    xCol: categorical[0] || numeric[0] || '',
+    yCol: numeric[0] || categorical[0] || '',
+    agg: numeric.length ? 'sum' : 'count',
+    chartType: numeric.length ? 'bar' : 'line',
+  };
 }

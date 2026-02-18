@@ -37,7 +37,12 @@
 
         <div class="card">
           <h3>Quick transform</h3>
-          <label>Action</label>
+          <label>One-click actions</label>
+          <div class="row">
+            <button id="presetTrimBtn" class="secondary">Trim spaces</button>
+            <button id="undoTransformBtn" class="secondary">Undo last</button>
+          </div>
+          <label style="margin-top:10px;">Action</label>
           <select id="actionType">
             <option value="rename">Rename column</option>
             <option value="astype">Set datatype</option>
@@ -72,6 +77,7 @@
 
           <div class="card">
             <h3>Visual</h3>
+            <button id="autoVisualBtn" class="secondary">Auto visual suggestion</button>
             <div class="row">
               <div>
                 <label>X</label><select id="xCol"></select>

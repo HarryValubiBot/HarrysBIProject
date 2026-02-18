@@ -1,7 +1,7 @@
 import http from 'node:http';
-import { openDb, listTables, listColumns, listForeignKeys } from './db.js';
 import { detectStarSchema } from './star.js';
 import { buildAggregateSql } from './query.js';
+import { introspectConnection, runQueryConnection } from './engine.js';
 
 function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -19,6 +19,12 @@ function readJson(req) {
   });
 }
 
+function cacheSafePayload(body) {
+  const copy = structuredClone(body || {});
+  if (copy.azure?.password) copy.azure.password = '__redacted__';
+  return copy;
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -33,13 +39,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.url === '/api/db/introspect' && req.method === 'POST') {
     try {
-      const { dbPath } = await readJson(req);
-      const db = openDb(dbPath);
-      const tables = listTables(db).map(name => ({
-        name,
-        columns: listColumns(db, name),
-        foreignKeys: listForeignKeys(db, name),
-      }));
+      const body = await readJson(req);
+      const tables = await introspectConnection(body);
       const star = detectStarSchema(tables);
       return json(res, 200, { ok: true, tables, star });
     } catch (e) {
@@ -50,15 +51,14 @@ const server = http.createServer(async (req, res) => {
   if (req.url === '/api/db/query' && req.method === 'POST') {
     try {
       const body = await readJson(req);
-      const cacheKey = JSON.stringify(body);
+      const cacheKey = JSON.stringify(cacheSafePayload(body));
       const cached = queryCache.get(cacheKey);
       if (cached && Date.now() - cached.ts < 30_000) {
         return json(res, 200, { ok: true, rows: cached.rows, sql: cached.sql, cached: true });
       }
 
-      const db = openDb(body.dbPath);
       const sql = buildAggregateSql(body);
-      const rows = db.prepare(sql).all();
+      const rows = await runQueryConnection(body, sql);
       queryCache.set(cacheKey, { ts: Date.now(), rows, sql });
       if (queryCache.size > 100) {
         const first = queryCache.keys().next().value;

@@ -41,8 +41,24 @@
 
         <div class="card">
           <h3>SQL Star Schema</h3>
-          <label>SQLite DB path</label>
-          <input id="dbPath" placeholder="/abs/path/to/star_demo.db" />
+          <label>Connection type</label>
+          <select id="connType">
+            <option value="sqlite">SQLite</option>
+            <option value="azure">Azure SQL</option>
+          </select>
+
+          <div id="sqliteFields">
+            <label>SQLite DB path</label>
+            <input id="dbPath" placeholder="/abs/path/to/star_demo.db" />
+          </div>
+
+          <div id="azureFields" style="display:none;">
+            <label>Server</label><input id="azServer" placeholder="yourserver.database.windows.net" />
+            <label>Database</label><input id="azDatabase" />
+            <label>User</label><input id="azUser" />
+            <label>Password</label><input id="azPassword" type="password" />
+          </div>
+
           <button id="connectDbBtn" class="secondary">Connect DB</button>
           <div id="dbStatus" class="tiny" style="margin-top:6px;">Not connected.</div>
         </div>

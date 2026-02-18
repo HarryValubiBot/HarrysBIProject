@@ -17,7 +17,14 @@ let rawVersion = 0;
 
 const els = {
   file: document.getElementById('csvFile'),
+  connType: document.getElementById('connType'),
+  sqliteFields: document.getElementById('sqliteFields'),
+  azureFields: document.getElementById('azureFields'),
   dbPath: document.getElementById('dbPath'),
+  azServer: document.getElementById('azServer'),
+  azDatabase: document.getElementById('azDatabase'),
+  azUser: document.getElementById('azUser'),
+  azPassword: document.getElementById('azPassword'),
   connectDbBtn: document.getElementById('connectDbBtn'),
   dbStatus: document.getElementById('dbStatus'),
   starSummary: document.getElementById('starSummary'),
@@ -219,6 +226,28 @@ function refreshForm() {
   els.actionForm.innerHTML = formFields(els.actionType.value, getColumns(rawRows));
 }
 
+function currentConnectionPayload() {
+  const connType = els.connType.value;
+  if (connType === 'azure') {
+    return {
+      connType,
+      azure: {
+        server: els.azServer.value.trim(),
+        database: els.azDatabase.value.trim(),
+        user: els.azUser.value.trim(),
+        password: els.azPassword.value,
+      },
+    };
+  }
+  return { connType: 'sqlite', dbPath: els.dbPath.value.trim() };
+}
+
+function refreshConnFields() {
+  const azure = els.connType.value === 'azure';
+  els.azureFields.style.display = azure ? 'block' : 'none';
+  els.sqliteFields.style.display = azure ? 'none' : 'block';
+}
+
 function tableByName(name) {
   return starTables.find(t => t.name === name);
 }
@@ -249,7 +278,7 @@ async function runDbReport() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      dbPath: els.dbPath.value.trim(),
+      ...currentConnectionPayload(),
       factTable: els.factTable.value,
       dimTable: els.dimTable.value,
       dimJoinFrom: rel.fromColumn,
@@ -287,6 +316,8 @@ els.file.addEventListener('change', async (e) => {
   recomputeTransforms();
 });
 
+refreshConnFields();
+els.connType.addEventListener('change', refreshConnFields);
 els.actionType.addEventListener('change', refreshForm);
 els.addTransformBtn.addEventListener('click', () => {
   transforms.push(getTransformFromForm(els.actionType.value));
@@ -370,7 +401,7 @@ els.connectDbBtn.addEventListener('click', async () => {
     const r = await fetch('http://localhost:8787/api/db/introspect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dbPath: els.dbPath.value.trim() }),
+      body: JSON.stringify(currentConnectionPayload()),
     });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'connect_failed');

@@ -37,6 +37,26 @@ Then in UI set DB path to:
 `/home/jonathan/.openclaw/workspace/bi_app_web/data/star_demo.db`
 and click **Connect DB** → **Auto DB report**.
 
+## Azure SQL connection
+
+1. Install backend dependency:
+```bash
+cd bi_app_web
+npm install
+```
+2. Start backend + web.
+3. In app, choose **Connection type = Azure SQL** and fill:
+   - server: `<name>.database.windows.net`
+   - database
+   - user
+   - password
+4. Click **Connect DB** then **Auto DB report**.
+
+Security notes:
+- Password is only sent to backend for the live request.
+- Password is not saved in the frontend state or backend cache keys.
+- Use a read-only SQL user for BI.
+
 ## Demo star-schema DB
 
 ```bash

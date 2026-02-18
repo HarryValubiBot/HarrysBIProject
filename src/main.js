@@ -272,3 +272,25 @@ els.nextPageBtn.addEventListener('click', () => {
   currentPage += 1;
   renderTable(transformedRows);
 });
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    transforms.pop();
+    currentPage = 1;
+    recomputeTransforms();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    transforms.push(getTransformFromForm(els.actionType.value));
+    currentPage = 1;
+    recomputeTransforms();
+  }
+  if (e.key === '/') {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag !== 'input' && tag !== 'textarea') {
+      e.preventDefault();
+      els.searchInput.focus();
+    }
+  }
+});

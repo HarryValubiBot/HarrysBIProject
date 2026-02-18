@@ -10,6 +10,8 @@ let cachedColOptionsHtml = '';
 let searchTimer;
 let currentPage = 1;
 const PAGE_SIZE = 100;
+const transformCache = new Map();
+let rawVersion = 0;
 
 const els = {
   file: document.getElementById('csvFile'),
@@ -162,9 +164,23 @@ function syncChartSelectors(cols) {
 
 function recomputeTransforms() {
   const t0 = performance.now();
-  const { data, applied } = applyTransforms(rawRows, transforms);
-  transformedRows = data;
-  renderApplied(applied);
+  const cacheKey = `${rawVersion}::${JSON.stringify(transforms)}`;
+  const cached = transformCache.get(cacheKey);
+
+  if (cached) {
+    transformedRows = cached.data;
+    renderApplied(cached.applied);
+  } else {
+    const { data, applied } = applyTransforms(rawRows, transforms);
+    transformedRows = data;
+    renderApplied(applied);
+    transformCache.set(cacheKey, { data, applied });
+    if (transformCache.size > 40) {
+      const first = transformCache.keys().next().value;
+      transformCache.delete(first);
+    }
+  }
+
   syncChartSelectors(getColumns(transformedRows));
   if (!els.xCol.value || !els.yCol.value) applyVisualSuggestion(transformedRows);
   renderTable(transformedRows);
@@ -184,6 +200,8 @@ els.file.addEventListener('change', async (e) => {
   transforms = [];
   transformedRows = rawRows;
   currentPage = 1;
+  rawVersion += 1;
+  transformCache.clear();
   columnsSignature = '';
   formColumnsSignature = '';
   refreshForm();

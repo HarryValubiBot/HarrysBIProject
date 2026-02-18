@@ -29,6 +29,7 @@ const els = {
   nextPageBtn: document.getElementById('nextPageBtn'),
   pageInfo: document.getElementById('pageInfo'),
   autoVisualBtn: document.getElementById('autoVisualBtn'),
+  clearChartFilterBtn: document.getElementById('clearChartFilterBtn'),
   xCol: document.getElementById('xCol'),
   yCol: document.getElementById('yCol'),
   aggType: document.getElementById('aggType'),
@@ -136,7 +137,15 @@ function renderChart(rows) {
       maintainAspectRatio: false,
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
-      plugins: { legend: { display: true } }
+      plugins: { legend: { display: true } },
+      onClick: (_evt, elements) => {
+        if (!elements?.length) return;
+        const idx = elements[0].index;
+        const label = trimmedLabels[idx];
+        els.searchInput.value = String(label ?? '');
+        currentPage = 1;
+        renderTable(transformedRows);
+      }
     }
   });
 }
@@ -234,6 +243,12 @@ els.presetTrimBtn.addEventListener('click', () => {
 });
 els.autoVisualBtn.addEventListener('click', () => {
   applyVisualSuggestion(transformedRows);
+  renderChart(transformedRows);
+});
+els.clearChartFilterBtn.addEventListener('click', () => {
+  els.searchInput.value = '';
+  currentPage = 1;
+  renderTable(transformedRows);
   renderChart(transformedRows);
 });
 els.searchInput.addEventListener('input', () => {

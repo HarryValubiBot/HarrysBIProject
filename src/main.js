@@ -5,6 +5,8 @@ let transforms = [];
 let transformedRows = [];
 let chart;
 let columnsSignature = '';
+let formColumnsSignature = '';
+let cachedColOptionsHtml = '';
 let searchTimer;
 let currentPage = 1;
 const PAGE_SIZE = 100;
@@ -36,7 +38,12 @@ function getColumns(rows) {
 }
 
 function formFields(type, cols) {
-  const colOptions = cols.map(c => `<option>${c}</option>`).join('');
+  const sig = cols.join('|');
+  if (sig !== formColumnsSignature) {
+    formColumnsSignature = sig;
+    cachedColOptionsHtml = cols.map(c => `<option>${c}</option>`).join('');
+  }
+  const colOptions = cachedColOptionsHtml;
   if (type === 'rename') return `
     <label>Column</label><select id="f_old">${colOptions}</select>
     <label>New name</label><input id="f_new" />`;
@@ -177,6 +184,7 @@ els.file.addEventListener('change', async (e) => {
   transformedRows = rawRows;
   currentPage = 1;
   columnsSignature = '';
+  formColumnsSignature = '';
   refreshForm();
   recomputeTransforms();
 });

@@ -4,6 +4,8 @@ let rawRows = [];
 let transforms = [];
 let transformedRows = [];
 let chart;
+let starTables = [];
+let starMeta = null;
 let columnsSignature = '';
 let formColumnsSignature = '';
 let cachedColOptionsHtml = '';
@@ -19,6 +21,12 @@ const els = {
   connectDbBtn: document.getElementById('connectDbBtn'),
   dbStatus: document.getElementById('dbStatus'),
   starSummary: document.getElementById('starSummary'),
+  factTable: document.getElementById('factTable'),
+  dimTable: document.getElementById('dimTable'),
+  dimLabelCol: document.getElementById('dimLabelCol'),
+  factMeasureCol: document.getElementById('factMeasureCol'),
+  dbAgg: document.getElementById('dbAgg'),
+  runDbReportBtn: document.getElementById('runDbReportBtn'),
   actionType: document.getElementById('actionType'),
   actionForm: document.getElementById('actionForm'),
   addTransformBtn: document.getElementById('addTransformBtn'),
@@ -210,6 +218,21 @@ function refreshForm() {
   els.actionForm.innerHTML = formFields(els.actionType.value, getColumns(rawRows));
 }
 
+function tableByName(name) {
+  return starTables.find(t => t.name === name);
+}
+
+function populateModelSelectors() {
+  if (!starMeta) return;
+  els.factTable.innerHTML = (starMeta.facts || []).map(t => `<option>${t}</option>`).join('');
+  els.dimTable.innerHTML = (starMeta.dimensions || []).map(t => `<option>${t}</option>`).join('');
+
+  const dim = tableByName(els.dimTable.value);
+  const fact = tableByName(els.factTable.value);
+  els.dimLabelCol.innerHTML = (dim?.columns || []).map(c => `<option>${c.name}</option>`).join('');
+  els.factMeasureCol.innerHTML = (fact?.columns || []).map(c => `<option>${c.name}</option>`).join('');
+}
+
 els.file.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -283,6 +306,43 @@ els.nextPageBtn.addEventListener('click', () => {
   renderTable(transformedRows);
 });
 
+els.factTable.addEventListener('change', populateModelSelectors);
+els.dimTable.addEventListener('change', populateModelSelectors);
+els.runDbReportBtn.addEventListener('click', async () => {
+  try {
+    if (!starMeta) throw new Error('connect_to_db_first');
+    const rel = (starMeta.relationships || []).find(r => r.fromTable === els.factTable.value && r.toTable === els.dimTable.value);
+    if (!rel) throw new Error('no_fact_dim_relationship_found');
+    const r = await fetch('http://localhost:8787/api/db/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dbPath: els.dbPath.value.trim(),
+        factTable: els.factTable.value,
+        dimTable: els.dimTable.value,
+        dimJoinFrom: rel.fromColumn,
+        dimJoinTo: rel.toColumn,
+        xColumn: els.dimLabelCol.value,
+        yColumn: els.factMeasureCol.value,
+        agg: els.dbAgg.value,
+      }),
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'db_report_failed');
+
+    transformedRows = j.rows.map(x => ({ label: x.label, value: x.value }));
+    columnsSignature = '';
+    syncChartSelectors(['label', 'value']);
+    els.xCol.value = 'label';
+    els.yCol.value = 'value';
+    els.aggType.value = 'sum';
+    renderTable(transformedRows);
+    renderChart(transformedRows);
+  } catch (e) {
+    els.dbStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
 els.connectDbBtn.addEventListener('click', async () => {
   try {
     els.dbStatus.textContent = 'Connecting...';
@@ -294,8 +354,11 @@ els.connectDbBtn.addEventListener('click', async () => {
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'connect_failed');
     const star = j.star || { facts: [], dimensions: [], relationships: [] };
+    starTables = j.tables || [];
+    starMeta = star;
     els.dbStatus.textContent = `Connected: ${j.tables.length} tables`;
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
+    populateModelSelectors();
   } catch (e) {
     els.dbStatus.textContent = `Error: ${e.message}`;
   }

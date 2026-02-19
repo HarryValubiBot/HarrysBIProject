@@ -337,6 +337,26 @@ function currentReportConfig() {
   };
 }
 
+function populateModelSelectors() {
+  if (!starMeta) return;
+  els.factTable.innerHTML = (starMeta.facts || []).map(t => `<option>${t}</option>`).join('');
+  els.dimTable.innerHTML = (starMeta.dimensions || []).map(t => `<option>${t}</option>`).join('');
+
+  const dim = tableByName(els.dimTable.value);
+  const fact = tableByName(els.factTable.value);
+  const dimCols = dim?.columns || [];
+  const factCols = fact?.columns || [];
+
+  els.dimLabelCol.innerHTML = dimCols.map(c => `<option>${c.name}</option>`).join('');
+  els.factMeasureCol.innerHTML = factCols.map(c => `<option>${c.name}</option>`).join('');
+
+  const dimNameCol = dimCols.find(c => /name|label|title/i.test(c.name));
+  if (dimNameCol) els.dimLabelCol.value = dimNameCol.name;
+
+  const factNumCol = factCols.find(c => /int|real|num|dec|float|double|bigint|smallint|money/i.test(String(c.type || '')) || /amount|sales|cost|qty|value/i.test(c.name));
+  if (factNumCol) els.factMeasureCol.value = factNumCol.name;
+}
+
 function applyReportConfig(cfg) {
   if (!cfg) return;
   if (cfg.connType) els.connType.value = cfg.connType;

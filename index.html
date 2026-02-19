@@ -146,17 +146,10 @@
 
           <div id="dwSection" class="card hidden">
             <h3>DW Mode (stg → dim)</h3>
-            <label>Source stg table</label><select id="dwSourceTable"></select>
-            <button id="dwLoadColumnsBtn" class="secondary">Load columns</button>
-            <label>Dimension view name (without v_)</label><input id="dwViewName" placeholder="customer" />
-            <label>Filter (SQL WHERE, optional)</label><input id="dwWhere" placeholder="is_deleted = 0" />
-            <label>Columns mapping (one per line: source:target)</label>
-            <textarea id="dwColumnsMap" rows="8" style="width:100%;box-sizing:border-box;background:#0f1420;color:#f6f7fb;border:1px solid #323c52;border-radius:8px;padding:8px;"></textarea>
-            <div class="row">
-              <button id="dwCreateViewBtn">Create dim.v_ view</button>
-              <button id="dwGenerateDimBtn" class="secondary">Generate dim table</button>
-            </div>
-            <label>Generator stored procedure</label><input id="dwGeneratorProc" value="dbo.GenerateT1Dimension" />
+            <p class="tiny">Quick mode: only choose dimension name and business keys.</p>
+            <label>Dimension name (expects source table stg.&lt;name&gt;)</label><input id="dwDimName" placeholder="customer" />
+            <label>Business keys (comma-separated)</label><input id="dwBks" placeholder="customer_number,company_id" />
+            <button id="dwBuildAutoBtn">Build dimension (view + utility proc)</button>
             <div id="dwStatus" class="tiny" style="margin-top:6px;">DW idle.</div>
           </div>
 

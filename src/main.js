@@ -72,14 +72,9 @@ const els = {
   transformSection: document.getElementById('transformSection'),
   visualSection: document.getElementById('visualSection'),
   dwSection: document.getElementById('dwSection'),
-  dwSourceTable: document.getElementById('dwSourceTable'),
-  dwLoadColumnsBtn: document.getElementById('dwLoadColumnsBtn'),
-  dwViewName: document.getElementById('dwViewName'),
-  dwWhere: document.getElementById('dwWhere'),
-  dwColumnsMap: document.getElementById('dwColumnsMap'),
-  dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
-  dwGenerateDimBtn: document.getElementById('dwGenerateDimBtn'),
-  dwGeneratorProc: document.getElementById('dwGeneratorProc'),
+  dwDimName: document.getElementById('dwDimName'),
+  dwBks: document.getElementById('dwBks'),
+  dwBuildAutoBtn: document.getElementById('dwBuildAutoBtn'),
   dwStatus: document.getElementById('dwStatus'),
 };
 
@@ -359,94 +354,13 @@ function tableByName(name) {
   return starTables.find(t => t.name === name);
 }
 
-function parseDwColumnsMap(text) {
-  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(line => {
-    const [from, to] = line.split(':').map(x => x.trim());
-    return { from, to: to || from };
-  });
-}
-
-async function loadDwStgTables() {
-  const r = await fetch(`${getApiBase()}/api/dw/stg-tables`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentConnectionPayload())
-  });
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'dw_stg_tables_failed');
-  els.dwSourceTable.innerHTML = (j.tables || []).map(t => `<option>${t}</option>`).join('');
-}
-
-function populateModelSelectors() {
-  if (!starMeta) return;
-  els.factTable.innerHTML = (starMeta.facts || []).map(t => `<option>${t}</option>`).join('');
-  els.dimTable.innerHTML = (starMeta.dimensions || []).map(t => `<option>${t}</option>`).join('');
-
-  const dim = tableByName(els.dimTable.value);
-  const fact = tableByName(els.factTable.value);
-  const dimCols = dim?.columns || [];
-  const factCols = fact?.columns || [];
-  els.dimLabelCol.innerHTML = dimCols.map(c => `<option>${c.name}</option>`).join('');
-  els.factMeasureCol.innerHTML = factCols.map(c => `<option>${c.name}</option>`).join('');
-
-  const dimNameCol = dimCols.find(c => /name|label|title/i.test(c.name));
-  if (dimNameCol) els.dimLabelCol.value = dimNameCol.name;
-  const factNumCol = factCols.find(c => /int|real|num|dec|float|double/i.test(String(c.type || '')) || /amount|sales|cost|qty|value/i.test(c.name));
-  if (factNumCol) els.factMeasureCol.value = factNumCol.name;
-}
-
-async function runDbReport() {
-  if (!starMeta) throw new Error('connect_to_db_first');
-  const rel = (starMeta.relationships || []).find(r => r.fromTable === els.factTable.value && r.toTable === els.dimTable.value);
-  if (!rel) throw new Error('no_fact_dim_relationship_found');
-  const r = await fetch(`${getApiBase()}/api/db/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...currentConnectionPayload(),
-      factTable: els.factTable.value,
-      dimTable: els.dimTable.value,
-      dimJoinFrom: rel.fromColumn,
-      dimJoinTo: rel.toColumn,
-      xColumn: els.dimLabelCol.value,
-      yColumn: els.factMeasureCol.value,
-      agg: els.dbAgg.value,
-    }),
-  });
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'db_report_failed');
-
-  transformedRows = j.rows.map(x => ({ label: x.label, value: x.value }));
-  columnsSignature = '';
-  syncChartSelectors(['label', 'value']);
-  els.xCol.value = 'label';
-  els.yCol.value = 'value';
-  els.aggType.value = 'sum';
-  renderTable(transformedRows);
-  renderChart(transformedRows);
-}
-
-els.file.addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  rawRows = parseCsv(await file.text());
-  transforms = [];
-  transformedRows = rawRows;
-  currentPage = 1;
-  rawVersion += 1;
-  transformCache.clear();
-  columnsSignature = '';
-  formColumnsSignature = '';
-  refreshForm();
-  recomputeTransforms();
-});
-
 refreshConnFields();
 setView('transform');
 els.connType.addEventListener('change', refreshConnFields);
 els.viewTransformBtn.addEventListener('click', () => setView('transform'));
 els.viewVisualBtn.addEventListener('click', () => setView('visual'));
-els.viewDwBtn.addEventListener('click', async () => {
+els.viewDwBtn.addEventListener('click', () => {
   setView('dw');
-  try { await loadDwStgTables(); } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
 });
 els.toggleConnBtn.addEventListener('click', () => {
   const isHidden = els.connDetails.classList.contains('hidden');
@@ -552,54 +466,19 @@ els.autoDbReportBtn.addEventListener('click', async () => {
   }
 });
 
-els.dwLoadColumnsBtn.addEventListener('click', async () => {
-  try {
-    const r = await fetch(`${getApiBase()}/api/dw/stg-columns`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...currentConnectionPayload(), sourceTable: els.dwSourceTable.value })
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_stg_columns_failed');
-    els.dwColumnsMap.value = (j.columns || []).map(c => `${c.name}:${c.name}`).join('\n');
-    els.dwStatus.textContent = `Loaded ${j.columns.length} columns`;
-  } catch (e) {
-    els.dwStatus.textContent = `Error: ${e.message}`;
-  }
-});
-
-els.dwCreateViewBtn.addEventListener('click', async () => {
+els.dwBuildAutoBtn.addEventListener('click', async () => {
   try {
     const payload = {
       ...currentConnectionPayload(),
-      viewName: els.dwViewName.value.trim(),
-      sourceTable: els.dwSourceTable.value,
-      whereClause: els.dwWhere.value.trim() || null,
-      columns: parseDwColumnsMap(els.dwColumnsMap.value),
+      dimName: els.dwDimName.value.trim(),
+      bks: els.dwBks.value.trim(),
     };
-    const r = await fetch(`${getApiBase()}/api/dw/create-dim-view`, {
+    const r = await fetch(`${getApiBase()}/api/dw/build-dim-auto`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
     const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_create_dim_view_failed');
-    els.dwStatus.textContent = `Created dim.v_${payload.viewName}`;
-  } catch (e) {
-    els.dwStatus.textContent = `Error: ${e.message}`;
-  }
-});
-
-els.dwGenerateDimBtn.addEventListener('click', async () => {
-  try {
-    const payload = {
-      ...currentConnectionPayload(),
-      viewName: els.dwViewName.value.trim(),
-      generatorProc: els.dwGeneratorProc.value.trim() || 'dbo.GenerateT1Dimension',
-    };
-    const r = await fetch(`${getApiBase()}/api/dw/generate-dim`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_generate_dim_failed');
-    els.dwStatus.textContent = `Generated dim.${payload.viewName.replace(/^v_/, '')}`;
+    if (!j.ok) throw new Error(j.error || 'dw_build_dim_auto_failed');
+    els.dwStatus.textContent = `Built dim.${payload.dimName} from stg.${payload.dimName}`;
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }
@@ -622,7 +501,6 @@ els.connectDbBtn.addEventListener('click', async () => {
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
     setConnectionCollapsed(true);
-    try { await loadDwStgTables(); } catch {}
     if (star.relationships?.length) {
       const rel = star.relationships[0];
       els.factTable.value = rel.fromTable;

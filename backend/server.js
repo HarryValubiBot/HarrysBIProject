@@ -2,7 +2,7 @@ import http from 'node:http';
 import { detectStarSchema } from './star.js';
 import { buildAggregateSql } from './query.js';
 import { introspectConnection, runQueryConnection, runExecConnection, listStgTablesConnection, listStgColumnsConnection } from './engine.js';
-import { buildDimViewSql, buildGenerateDimExecSql } from './dw.js';
+import { buildDimViewSql, buildGenerateDimExecSql, buildT1DimensionProcSql } from './dw.js';
 
 function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -141,6 +141,37 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       logError('DW_GENERATE_DIM', e, body);
       return json(res, 400, { ok: false, error: e.message || 'dw_generate_dim_failed' });
+    }
+  }
+
+  if (req.url === '/api/dw/build-dim-auto' && req.method === 'POST') {
+    let body = {};
+    try {
+      body = await readJson(req);
+      const dimName = String(body.dimName || '').trim();
+      const bks = String(body.bks || '').trim();
+      if (!dimName || !bks) throw new Error('dimName_and_bks_required');
+
+      const cols = await listStgColumnsConnection(body, dimName);
+      const columns = cols.map(c => ({ from: c.name, to: c.name }));
+      const viewSql = buildDimViewSql({ viewName: dimName, sourceTable: dimName, columns, whereClause: null });
+      await runExecConnection(body, viewSql);
+
+      const procSql = buildT1DimensionProcSql({
+        targetSchema: 'dim',
+        targetTableName: dimName,
+        sourceViewSchema: 'dim',
+        sourceViewName: `v_${dimName}`,
+        switchSchema: 'switch',
+        bks,
+        includeDwValidFrom: false,
+      });
+      await runExecConnection(body, procSql);
+
+      return json(res, 200, { ok: true, viewSql, procSql });
+    } catch (e) {
+      logError('DW_BUILD_DIM_AUTO', e, body);
+      return json(res, 400, { ok: false, error: e.message || 'dw_build_dim_auto_failed' });
     }
   }
 

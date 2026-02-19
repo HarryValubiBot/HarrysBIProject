@@ -23,3 +23,31 @@ export function buildGenerateDimExecSql({ generatorProc = 'dbo.GenerateT1Dimensi
   const base = safePart(viewName).replace(/^v_/, '');
   return `EXEC ${generatorProc} @SourceSchema='dim', @SourceView='v_${base}', @TargetSchema='dim', @TargetName='${base}';`;
 }
+
+export function buildT1DimensionProcSql({
+  targetSchema = 'dim',
+  targetTableName,
+  sourceViewSchema = 'dim',
+  sourceViewName,
+  switchSchema = 'switch',
+  bks,
+  includeDwValidFrom = 0,
+  deleteObjects = 0,
+}) {
+  const tSchema = safePart(targetSchema);
+  const tTable = safePart(targetTableName);
+  const sSchema = safePart(sourceViewSchema);
+  const sView = safePart(sourceViewName);
+  const swSchema = safePart(switchSchema);
+  const bksSafe = String(bks || '').replace(/'/g, "''");
+
+  return `EXEC [utility].[sp_create_T1_dimension_view_based_proc]\n` +
+    `  @Target_Schema='${tSchema}',\n` +
+    `  @Target_Table_Name='${tTable}',\n` +
+    `  @Source_View_Schema='${sSchema}',\n` +
+    `  @Source_View_Name='${sView}',\n` +
+    `  @Switch_Schema='${swSchema}',\n` +
+    `  @BKs='${bksSafe}',\n` +
+    `  @Include_DW_ValidFrom=${includeDwValidFrom ? 1 : 0},\n` +
+    `  @DeleteObjects=${deleteObjects ? 1 : 0};`;
+}

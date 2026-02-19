@@ -12,7 +12,8 @@ let formColumnsSignature = '';
 let cachedColOptionsHtml = '';
 let searchTimer;
 let currentPage = 1;
-let dwColumns = [];
+let dwColumns = []; 
+let dwPreviewTimer;
 const PAGE_SIZE = 100;
 const transformCache = new Map();
 let rawVersion = 0;
@@ -76,13 +77,14 @@ const els = {
   modelSection: document.getElementById('modelSection'),
   dwDimName: document.getElementById('dwDimName'),
   dwSourceTable: document.getElementById('dwSourceTable'),
-  dwLoadColumnsBtn: document.getElementById('dwLoadColumnsBtn'),
-  dwWhere: document.getElementById('dwWhere'),
+  dwFilterCol: document.getElementById('dwFilterCol'),
+  dwFilterOp: document.getElementById('dwFilterOp'),
+  dwFilterVal: document.getElementById('dwFilterVal'),
   dwColumnsGrid: document.getElementById('dwColumnsGrid'),
   dwSelectAllColsBtn: document.getElementById('dwSelectAllColsBtn'),
   dwDeselectAllColsBtn: document.getElementById('dwDeselectAllColsBtn'),
-  dwPreviewBtn: document.getElementById('dwPreviewBtn'),
   dwCreateAllBtn: document.getElementById('dwCreateAllBtn'),
+  dwRefreshPreviewBtn: document.getElementById('dwRefreshPreviewBtn'),
   dwPreviewMeta: document.getElementById('dwPreviewMeta'),
   dwStatus: document.getElementById('dwStatus'),
 };
@@ -434,8 +436,10 @@ async function loadDwColumns() {
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'dw_stg_columns_failed');
   dwColumns = (j.columns || []).map(c => ({ name: c.name, alias: c.name, include: true, bk: false }));
+  els.dwFilterCol.innerHTML = dwColumns.map(c => `<option>${c.name}</option>`).join('');
   renderDwColumnsGrid();
   bindDwGridInputs();
+  await refreshDwPreview().catch(() => {});
 }
 
 function selectedDwMappings() {
@@ -453,13 +457,25 @@ els.viewTransformBtn.addEventListener('click', () => setView('transform'));
 els.viewVisualBtn.addEventListener('click', () => setView('visual'));
 els.viewDwBtn.addEventListener('click', async () => {
   setView('dw');
-  try { await loadDwStgTables(); } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
+  try {
+    await loadDwStgTables();
+    await loadDwColumns();
+  } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
 });
 els.toggleConnBtn.addEventListener('click', () => {
   const isHidden = els.connDetails.classList.contains('hidden');
   setConnectionCollapsed(!isHidden);
 });
 els.actionType.addEventListener('change', refreshForm);
+els.dwSourceTable.addEventListener('change', () => {
+  loadDwColumns().catch(e => { els.dwStatus.textContent = `Error: ${e.message}`; });
+});
+[els.dwFilterCol, els.dwFilterOp, els.dwFilterVal].forEach(el => {
+  el.addEventListener('input', () => {
+    clearTimeout(dwPreviewTimer);
+    dwPreviewTimer = setTimeout(() => refreshDwPreview().catch(e => { els.dwStatus.textContent = `Error: ${e.message}`; }), 180);
+  });
+});
 els.addTransformBtn.addEventListener('click', () => {
   transforms.push(getTransformFromForm(els.actionType.value));
   currentPage = 1;
@@ -559,49 +575,56 @@ els.autoDbReportBtn.addEventListener('click', async () => {
   }
 });
 
-els.dwLoadColumnsBtn.addEventListener('click', async () => {
-  try {
-    await loadDwColumns();
-    els.dwStatus.textContent = `Loaded ${dwColumns.length} source columns`;
-  } catch (e) {
-    els.dwStatus.textContent = `Error: ${e.message}`;
-  }
-});
+function currentDwFilters() {
+  const col = els.dwFilterCol.value;
+  const op = els.dwFilterOp.value;
+  const val = els.dwFilterVal.value.trim();
+  if (!col) return [];
+  if ((op === 'eq' || op === 'contains' || op === 'gt' || op === 'lt') && !val) return [];
+  return [{ column: col, op, value: val }];
+}
+
+async function refreshDwPreview(autoSwitch = false) {
+  const columns = selectedDwMappings();
+  if (!columns.length) return;
+  const payload = {
+    ...currentConnectionPayload(),
+    sourceTable: els.dwSourceTable.value,
+    filters: currentDwFilters(),
+    columns,
+  };
+  const r = await fetch(`${getApiBase()}/api/dw/preview-view`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'dw_preview_failed');
+  els.dwPreviewMeta.textContent = `Preview rows: ${j.rows.length}`;
+  transformedRows = j.rows || [];
+  columnsSignature = '';
+  syncChartSelectors(getColumns(transformedRows));
+  renderTable(transformedRows);
+  renderChart(transformedRows);
+  if (autoSwitch) setView('visual');
+}
 
 els.dwSelectAllColsBtn.addEventListener('click', () => {
   dwColumns.forEach(c => { c.include = true; });
   renderDwColumnsGrid();
   bindDwGridInputs();
+  clearTimeout(dwPreviewTimer);
+  dwPreviewTimer = setTimeout(() => refreshDwPreview().catch(e => { els.dwStatus.textContent = `Error: ${e.message}`; }), 150);
 });
 
 els.dwDeselectAllColsBtn.addEventListener('click', () => {
   dwColumns.forEach(c => { c.include = false; });
   renderDwColumnsGrid();
   bindDwGridInputs();
+  els.dwPreviewMeta.textContent = 'Preview rows: 0';
 });
 
-els.dwPreviewBtn.addEventListener('click', async () => {
+els.dwRefreshPreviewBtn.addEventListener('click', async () => {
   try {
-    const columns = selectedDwMappings();
-    if (!columns.length) throw new Error('select_at_least_one_column');
-    const payload = {
-      ...currentConnectionPayload(),
-      sourceTable: els.dwSourceTable.value,
-      whereClause: els.dwWhere.value.trim() || null,
-      columns,
-    };
-    const r = await fetch(`${getApiBase()}/api/dw/preview-view`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_preview_failed');
-    els.dwPreviewMeta.textContent = `Preview rows: ${j.rows.length}`;
-    transformedRows = j.rows || [];
-    columnsSignature = '';
-    syncChartSelectors(getColumns(transformedRows));
-    renderTable(transformedRows);
-    renderChart(transformedRows);
-    setView('visual');
+    await refreshDwPreview(true);
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }
@@ -620,7 +643,7 @@ els.dwCreateAllBtn.addEventListener('click', async () => {
       ...currentConnectionPayload(),
       dimName,
       sourceTable: els.dwSourceTable.value,
-      whereClause: els.dwWhere.value.trim() || null,
+      filters: currentDwFilters(),
       columns,
       bks: bkCols.join(','),
     };

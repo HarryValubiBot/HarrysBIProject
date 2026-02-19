@@ -7,7 +7,7 @@ test('buildDimViewSql builds dim.v_ view from stg source', () => {
     viewName: 'customers',
     sourceTable: 'customers_raw',
     columns: [{ from: 'id', to: 'customer_id' }, { from: 'name', to: 'customer_name' }],
-    whereClause: "is_deleted = 0"
+    filters: [{ column: 'name', op: 'contains', value: 'A' }]
   });
   assert.match(sql, /CREATE OR ALTER VIEW \[dim\]\.\[v_customers\]/i);
   assert.match(sql, /FROM \[stg\]\.\[customers_raw\]/i);

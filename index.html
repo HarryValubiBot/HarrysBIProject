@@ -151,10 +151,13 @@
 
             <label>Dimension base name</label><input id="dwDimName" placeholder="customer" />
             <label>Source stg table</label><select id="dwSourceTable"></select>
-            <button id="dwLoadColumnsBtn" class="secondary">Load source columns</button>
 
-            <label style="margin-top:10px;">Filter (optional SQL expression)</label>
-            <input id="dwWhere" placeholder="is_deleted = 0" />
+            <label style="margin-top:10px;">Filter</label>
+            <div class="row">
+              <select id="dwFilterCol"></select>
+              <select id="dwFilterOp"><option value="eq">=</option><option value="contains">contains</option><option value="gt">&gt;</option><option value="lt">&lt;</option><option value="isnull">is null</option><option value="notnull">is not null</option></select>
+            </div>
+            <input id="dwFilterVal" placeholder="Filter value" />
 
             <label style="margin-top:10px;">Column mapping (select + rename)</label>
             <div class="row" style="margin-bottom:8px;">
@@ -164,8 +167,8 @@
             <div id="dwColumnsGrid" style="max-height:220px;overflow:auto;border:1px solid #323c52;border-radius:8px;padding:8px;"></div>
 
             <div class="row" style="margin-top:10px;">
-              <button id="dwPreviewBtn" class="secondary">Preview view data</button>
               <button id="dwCreateAllBtn">Create view + validate BK + create dimension</button>
+              <button id="dwRefreshPreviewBtn" class="secondary">Refresh preview</button>
             </div>
             <div id="dwPreviewMeta" class="tiny" style="margin-top:6px;"></div>
             <div id="dwStatus" class="tiny" style="margin-top:6px;">DW idle.</div>

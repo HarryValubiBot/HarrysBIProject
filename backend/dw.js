@@ -5,7 +5,28 @@ function safePart(x) {
 function q(name) { return `[${safePart(name)}]`; }
 export { safePart };
 
-export function buildDimViewSql({ viewName, sourceTable, columns, whereClause }) {
+function escSqlLiteral(v) {
+  return String(v ?? '').replace(/'/g, "''");
+}
+
+function buildWhereFromFilters(filters = []) {
+  if (!Array.isArray(filters) || !filters.length) return '';
+  const parts = [];
+  for (const f of filters) {
+    const col = q(f.column);
+    const op = String(f.op || 'eq');
+    const val = escSqlLiteral(f.value);
+    if (op === 'eq') parts.push(`${col} = '${val}'`);
+    else if (op === 'contains') parts.push(`${col} LIKE '%${val}%'`);
+    else if (op === 'gt') parts.push(`${col} > '${val}'`);
+    else if (op === 'lt') parts.push(`${col} < '${val}'`);
+    else if (op === 'isnull') parts.push(`${col} IS NULL`);
+    else if (op === 'notnull') parts.push(`${col} IS NOT NULL`);
+  }
+  return parts.length ? `\nWHERE ${parts.join(' AND ')}` : '';
+}
+
+export function buildDimViewSql({ viewName, sourceTable, columns, filters }) {
   const v = safePart(viewName);
   const src = safePart(sourceTable);
   if (!Array.isArray(columns) || !columns.length) throw new Error('columns_required');
@@ -16,7 +37,7 @@ export function buildDimViewSql({ viewName, sourceTable, columns, whereClause })
     return `${from}${to}`;
   }).join(',\n  ');
 
-  const where = whereClause ? `\nWHERE ${whereClause}` : '';
+  const where = buildWhereFromFilters(filters);
   return `CREATE OR ALTER VIEW [dim].[v_${v}] AS\nSELECT\n  ${sel}\nFROM [stg].[${src}]${where};`;
 }
 
@@ -25,14 +46,14 @@ export function buildGenerateDimExecSql({ generatorProc = 'dbo.GenerateT1Dimensi
   return `EXEC ${generatorProc} @SourceSchema='dim', @SourceView='v_${base}', @TargetSchema='dim', @TargetName='${base}';`;
 }
 
-export function buildDwPreviewSql({ sourceTable, columns, whereClause }) {
+export function buildDwPreviewSql({ sourceTable, columns, filters }) {
   const src = safePart(sourceTable);
   const sel = columns.map(c => {
     const from = q(c.from);
     const to = c.to && c.to !== c.from ? ` AS ${q(c.to)}` : '';
     return `${from}${to}`;
   }).join(', ');
-  const where = whereClause ? ` WHERE ${whereClause}` : '';
+  const where = buildWhereFromFilters(filters).replace(/^\n/, ' ');
   return `SELECT TOP 100 ${sel} FROM [stg].[${src}]${where}`;
 }
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Harry BI</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #0f1115; color: #f6f7fb; }
@@ -109,7 +110,7 @@
           <button id="viewDwBtn" class="secondary">DW Mode</button>
         </div>
         <div class="top">
-          <div class="card">
+          <div id="modelSection" class="card">
             <h3>Model</h3>
             <div id="starSummary" class="tiny">No star schema loaded.</div>
             <label>Fact table</label><select id="factTable"></select>

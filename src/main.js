@@ -72,6 +72,7 @@ const els = {
   transformSection: document.getElementById('transformSection'),
   visualSection: document.getElementById('visualSection'),
   dwSection: document.getElementById('dwSection'),
+  modelSection: document.getElementById('modelSection'),
   dwDimName: document.getElementById('dwDimName'),
   dwBks: document.getElementById('dwBks'),
   dwBuildAutoBtn: document.getElementById('dwBuildAutoBtn'),
@@ -295,6 +296,7 @@ function setView(mode) {
   els.transformSection.classList.toggle('hidden', !transform);
   els.visualSection.classList.toggle('hidden', !visual);
   els.dwSection.classList.toggle('hidden', !dw);
+  els.modelSection.classList.toggle('hidden', dw);
   els.viewTransformBtn.classList.toggle('active', transform);
   els.viewVisualBtn.classList.toggle('active', visual);
   els.viewDwBtn.classList.toggle('active', dw);

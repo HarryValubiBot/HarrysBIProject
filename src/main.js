@@ -12,6 +12,8 @@ let formColumnsSignature = '';
 let cachedColOptionsHtml = '';
 let searchTimer;
 let currentPage = 1;
+let dwColumns = [];
+let dwViewColumns = [];
 const PAGE_SIZE = 100;
 const transformCache = new Map();
 let rawVersion = 0;
@@ -74,8 +76,14 @@ const els = {
   dwSection: document.getElementById('dwSection'),
   modelSection: document.getElementById('modelSection'),
   dwDimName: document.getElementById('dwDimName'),
-  dwBks: document.getElementById('dwBks'),
-  dwBuildAutoBtn: document.getElementById('dwBuildAutoBtn'),
+  dwSourceTable: document.getElementById('dwSourceTable'),
+  dwLoadColumnsBtn: document.getElementById('dwLoadColumnsBtn'),
+  dwWhere: document.getElementById('dwWhere'),
+  dwColumnsGrid: document.getElementById('dwColumnsGrid'),
+  dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
+  dwRefreshBksBtn: document.getElementById('dwRefreshBksBtn'),
+  dwBkPicker: document.getElementById('dwBkPicker'),
+  dwCreateDimBtn: document.getElementById('dwCreateDimBtn'),
   dwStatus: document.getElementById('dwStatus'),
 };
 
@@ -384,9 +392,67 @@ async function loadDwStgTables() {
   if (!j.ok) throw new Error(j.error || 'dw_stg_tables_failed');
   const tables = j.tables || [];
   els.dwSourceTable.innerHTML = tables.map(t => `<option>${t}</option>`).join('');
-  if (tables.length && !els.dwDimName.value.trim()) {
-    els.dwDimName.value = tables[0];
+  if (tables.length && !els.dwDimName.value.trim()) els.dwDimName.value = tables[0];
+}
+
+function renderDwColumnsGrid() {
+  if (!dwColumns.length) {
+    els.dwColumnsGrid.innerHTML = '<div class="tiny">Load columns first.</div>';
+    return;
   }
+  els.dwColumnsGrid.innerHTML = dwColumns.map((c, i) => `
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+      <input type="checkbox" data-dw-include="${i}" ${c.include ? 'checked' : ''} />
+      <div class="tiny">${c.name}</div>
+      <input data-dw-alias="${i}" value="${c.alias}" />
+    </div>
+  `).join('');
+}
+
+function bindDwGridInputs() {
+  els.dwColumnsGrid.querySelectorAll('[data-dw-include]').forEach(el => {
+    el.addEventListener('change', () => { dwColumns[Number(el.dataset.dwInclude)].include = el.checked; });
+  });
+  els.dwColumnsGrid.querySelectorAll('[data-dw-alias]').forEach(el => {
+    el.addEventListener('input', () => { dwColumns[Number(el.dataset.dwAlias)].alias = el.value.trim() || dwColumns[Number(el.dataset.dwAlias)].name; });
+  });
+}
+
+async function loadDwColumns() {
+  const r = await fetch(`${getApiBase()}/api/dw/stg-columns`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...currentConnectionPayload(), sourceTable: els.dwSourceTable.value })
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'dw_stg_columns_failed');
+  dwColumns = (j.columns || []).map(c => ({ name: c.name, alias: c.name, include: true }));
+  renderDwColumnsGrid();
+  bindDwGridInputs();
+}
+
+function selectedDwMappings() {
+  return dwColumns.filter(c => c.include).map(c => ({ from: c.name, to: c.alias || c.name }));
+}
+
+function renderDwBkPicker() {
+  if (!dwViewColumns.length) {
+    els.dwBkPicker.innerHTML = '<div class="tiny">Create/refresh view to load BK options.</div>';
+    return;
+  }
+  els.dwBkPicker.innerHTML = dwViewColumns.map((c, i) => `
+    <label style="display:flex;align-items:center;gap:8px;margin:4px 0;">
+      <input type="checkbox" data-dw-bk="${i}" />
+      <span class="tiny">${c}</span>
+    </label>
+  `).join('');
+}
+
+function selectedDwBks() {
+  const picks = [];
+  els.dwBkPicker.querySelectorAll('[data-dw-bk]').forEach(el => {
+    if (el.checked) picks.push(dwViewColumns[Number(el.dataset.dwBk)]);
+  });
+  return picks;
 }
 
 refreshConnFields();
@@ -502,20 +568,68 @@ els.autoDbReportBtn.addEventListener('click', async () => {
   }
 });
 
-els.dwBuildAutoBtn.addEventListener('click', async () => {
+els.dwLoadColumnsBtn.addEventListener('click', async () => {
   try {
+    await loadDwColumns();
+    els.dwStatus.textContent = `Loaded ${dwColumns.length} source columns`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
+els.dwCreateViewBtn.addEventListener('click', async () => {
+  try {
+    const dimName = els.dwDimName.value.trim();
+    if (!dimName) throw new Error('dim_name_required');
+    const columns = selectedDwMappings();
+    if (!columns.length) throw new Error('select_at_least_one_column');
+
     const payload = {
       ...currentConnectionPayload(),
+      viewName: dimName,
       sourceTable: els.dwSourceTable.value,
-      dimName: els.dwDimName.value.trim(),
-      bks: els.dwBks.value.trim(),
+      whereClause: els.dwWhere.value.trim() || null,
+      columns,
+    };
+    const r = await fetch(`${getApiBase()}/api/dw/create-dim-view`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_create_dim_view_failed');
+
+    dwViewColumns = columns.map(c => c.to);
+    renderDwBkPicker();
+    els.dwStatus.textContent = `Created dim.v_${dimName}`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
+els.dwRefreshBksBtn.addEventListener('click', () => {
+  dwViewColumns = selectedDwMappings().map(c => c.to);
+  renderDwBkPicker();
+  els.dwStatus.textContent = `Refreshed BK choices (${dwViewColumns.length} columns)`;
+});
+
+els.dwCreateDimBtn.addEventListener('click', async () => {
+  try {
+    const dimName = els.dwDimName.value.trim();
+    const bkCols = selectedDwBks();
+    if (!dimName) throw new Error('dim_name_required');
+    if (!bkCols.length) throw new Error('select_at_least_one_business_key');
+
+    const payload = {
+      ...currentConnectionPayload(),
+      dimName,
+      bks: bkCols.join(','),
+      sourceTable: els.dwSourceTable.value,
     };
     const r = await fetch(`${getApiBase()}/api/dw/build-dim-auto`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'dw_build_dim_auto_failed');
-    els.dwStatus.textContent = `Built dim.${payload.dimName} from stg.${payload.sourceTable}`;
+    els.dwStatus.textContent = `Created dim.${dimName} using BKs: ${bkCols.join(', ')}`;
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }

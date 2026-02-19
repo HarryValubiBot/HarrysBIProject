@@ -149,14 +149,8 @@ const server = http.createServer(async (req, res) => {
     try {
       body = await readJson(req);
       const dimName = String(body.dimName || '').trim();
-      const sourceTable = String(body.sourceTable || '').trim();
       const bks = String(body.bks || '').trim();
-      if (!dimName || !sourceTable || !bks) throw new Error('dimName_sourceTable_and_bks_required');
-
-      const cols = await listStgColumnsConnection(body, sourceTable);
-      const columns = cols.map(c => ({ from: c.name, to: c.name }));
-      const viewSql = buildDimViewSql({ viewName: dimName, sourceTable, columns, whereClause: null });
-      await runExecConnection(body, viewSql);
+      if (!dimName || !bks) throw new Error('dimName_and_bks_required');
 
       const procSql = buildT1DimensionProcSql({
         targetSchema: 'dim',
@@ -169,7 +163,7 @@ const server = http.createServer(async (req, res) => {
       });
       await runExecConnection(body, procSql);
 
-      return json(res, 200, { ok: true, viewSql, procSql });
+      return json(res, 200, { ok: true, procSql });
     } catch (e) {
       logError('DW_BUILD_DIM_AUTO', e, body);
       return json(res, 400, { ok: false, error: e.message || 'dw_build_dim_auto_failed' });

@@ -147,11 +147,27 @@
 
           <div id="dwSection" class="card hidden">
             <h3>DW Mode (stg → dim)</h3>
-            <p class="tiny">Pick source stg table, then provide a base name. We create dim.v_&lt;name&gt; and dim.&lt;name&gt;.</p>
-            <label>Source stg table</label><select id="dwSourceTable"></select>
+            <p class="tiny">Step 1: build <b>dim.v_&lt;name&gt;</b> from stg. Step 2: choose BKs and create <b>dim.&lt;name&gt;</b>.</p>
+
             <label>Dimension base name</label><input id="dwDimName" placeholder="customer" />
-            <label>Business keys (comma-separated)</label><input id="dwBks" placeholder="customer_number,company_id" />
-            <button id="dwBuildAutoBtn">Create dimension</button>
+            <label>Source stg table</label><select id="dwSourceTable"></select>
+            <button id="dwLoadColumnsBtn" class="secondary">Load source columns</button>
+
+            <label style="margin-top:10px;">Filter (optional SQL expression)</label>
+            <input id="dwWhere" placeholder="is_deleted = 0" />
+
+            <label style="margin-top:10px;">Column mapping (select + rename)</label>
+            <div id="dwColumnsGrid" style="max-height:220px;overflow:auto;border:1px solid #323c52;border-radius:8px;padding:8px;"></div>
+
+            <div class="row" style="margin-top:10px;">
+              <button id="dwCreateViewBtn">1) Create/Update view</button>
+              <button id="dwRefreshBksBtn" class="secondary">Refresh BK choices</button>
+            </div>
+
+            <label style="margin-top:10px;">Business keys (click to select)</label>
+            <div id="dwBkPicker" style="max-height:140px;overflow:auto;border:1px solid #323c52;border-radius:8px;padding:8px;"></div>
+
+            <button id="dwCreateDimBtn" style="margin-top:10px;">2) Create dimension from view</button>
             <div id="dwStatus" class="tiny" style="margin-top:6px;">DW idle.</div>
           </div>
 

@@ -9,7 +9,7 @@ A browser-based BI app (Power BI style starter):
 - Backend SQL query cache for snappier repeat reports
 - Saved report definitions (without storing Azure password)
 - Dual-visual dashboard view (primary + secondary chart)
-- DW mode builder: build dim.v_<name> from stg table with select/rename/filter, preview data, validate BK quality, then execute utility.sp_create_T1_dimension_view_based_proc for dim.<name>
+- DW mode builder: select/rename/filter columns with per-column Business Key checkbox, then one-click create (view + BK validation + dimension generation)
 - Minimal-click workflow with quick actions
 
 ## Run

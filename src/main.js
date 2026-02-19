@@ -13,7 +13,6 @@ let cachedColOptionsHtml = '';
 let searchTimer;
 let currentPage = 1;
 let dwColumns = [];
-let dwViewColumns = [];
 const PAGE_SIZE = 100;
 const transformCache = new Map();
 let rawVersion = 0;
@@ -83,12 +82,8 @@ const els = {
   dwSelectAllColsBtn: document.getElementById('dwSelectAllColsBtn'),
   dwDeselectAllColsBtn: document.getElementById('dwDeselectAllColsBtn'),
   dwPreviewBtn: document.getElementById('dwPreviewBtn'),
-  dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
-  dwRefreshBksBtn: document.getElementById('dwRefreshBksBtn'),
-  dwValidateBksBtn: document.getElementById('dwValidateBksBtn'),
+  dwCreateAllBtn: document.getElementById('dwCreateAllBtn'),
   dwPreviewMeta: document.getElementById('dwPreviewMeta'),
-  dwBkPicker: document.getElementById('dwBkPicker'),
-  dwCreateDimBtn: document.getElementById('dwCreateDimBtn'),
   dwStatus: document.getElementById('dwStatus'),
 };
 
@@ -405,9 +400,14 @@ function renderDwColumnsGrid() {
     els.dwColumnsGrid.innerHTML = '<div class="tiny">Load columns first.</div>';
     return;
   }
-  els.dwColumnsGrid.innerHTML = dwColumns.map((c, i) => `
-    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+  els.dwColumnsGrid.innerHTML = `
+    <div style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;font-weight:600;" class="tiny">
+      <div>Use</div><div>BK</div><div>Source</div><div>Alias</div>
+    </div>
+  ` + dwColumns.map((c, i) => `
+    <div style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
       <input type="checkbox" data-dw-include="${i}" ${c.include ? 'checked' : ''} />
+      <input type="checkbox" data-dw-bk-col="${i}" ${c.bk ? 'checked' : ''} />
       <div class="tiny">${c.name}</div>
       <input data-dw-alias="${i}" value="${c.alias}" />
     </div>
@@ -421,6 +421,9 @@ function bindDwGridInputs() {
   els.dwColumnsGrid.querySelectorAll('[data-dw-alias]').forEach(el => {
     el.addEventListener('input', () => { dwColumns[Number(el.dataset.dwAlias)].alias = el.value.trim() || dwColumns[Number(el.dataset.dwAlias)].name; });
   });
+  els.dwColumnsGrid.querySelectorAll('[data-dw-bk-col]').forEach(el => {
+    el.addEventListener('change', () => { dwColumns[Number(el.dataset.dwBkCol)].bk = el.checked; });
+  });
 }
 
 async function loadDwColumns() {
@@ -430,7 +433,7 @@ async function loadDwColumns() {
   });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'dw_stg_columns_failed');
-  dwColumns = (j.columns || []).map(c => ({ name: c.name, alias: c.name, include: true }));
+  dwColumns = (j.columns || []).map(c => ({ name: c.name, alias: c.name, include: true, bk: false }));
   renderDwColumnsGrid();
   bindDwGridInputs();
 }
@@ -439,25 +442,8 @@ function selectedDwMappings() {
   return dwColumns.filter(c => c.include).map(c => ({ from: c.name, to: c.alias || c.name }));
 }
 
-function renderDwBkPicker() {
-  if (!dwViewColumns.length) {
-    els.dwBkPicker.innerHTML = '<div class="tiny">Create/refresh view to load BK options.</div>';
-    return;
-  }
-  els.dwBkPicker.innerHTML = dwViewColumns.map((c, i) => `
-    <label style="display:flex;align-items:center;gap:8px;margin:4px 0;">
-      <input type="checkbox" data-dw-bk="${i}" />
-      <span class="tiny">${c}</span>
-    </label>
-  `).join('');
-}
-
 function selectedDwBks() {
-  const picks = [];
-  els.dwBkPicker.querySelectorAll('[data-dw-bk]').forEach(el => {
-    if (el.checked) picks.push(dwViewColumns[Number(el.dataset.dwBk)]);
-  });
-  return picks;
+  return dwColumns.filter(c => c.include && c.bk).map(c => c.alias || c.name);
 }
 
 refreshConnFields();
@@ -621,77 +607,49 @@ els.dwPreviewBtn.addEventListener('click', async () => {
   }
 });
 
-els.dwCreateViewBtn.addEventListener('click', async () => {
+els.dwCreateAllBtn.addEventListener('click', async () => {
   try {
     const dimName = els.dwDimName.value.trim();
-    if (!dimName) throw new Error('dim_name_required');
     const columns = selectedDwMappings();
+    const bkCols = selectedDwBks();
+    if (!dimName) throw new Error('dim_name_required');
     if (!columns.length) throw new Error('select_at_least_one_column');
+    if (!bkCols.length) throw new Error('select_at_least_one_business_key');
 
-    const payload = {
+    const basePayload = {
       ...currentConnectionPayload(),
-      viewName: dimName,
+      dimName,
       sourceTable: els.dwSourceTable.value,
       whereClause: els.dwWhere.value.trim() || null,
       columns,
-    };
-    const r = await fetch(`${getApiBase()}/api/dw/create-dim-view`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_create_dim_view_failed');
-
-    dwViewColumns = columns.map(c => c.to);
-    renderDwBkPicker();
-    els.dwStatus.textContent = `Created dim.v_${dimName}`;
-  } catch (e) {
-    els.dwStatus.textContent = `Error: ${e.message}`;
-  }
-});
-
-els.dwRefreshBksBtn.addEventListener('click', () => {
-  dwViewColumns = selectedDwMappings().map(c => c.to);
-  renderDwBkPicker();
-  els.dwStatus.textContent = `Refreshed BK choices (${dwViewColumns.length} columns)`;
-});
-
-els.dwValidateBksBtn.addEventListener('click', async () => {
-  try {
-    const dimName = els.dwDimName.value.trim();
-    const bkCols = selectedDwBks();
-    if (!dimName) throw new Error('dim_name_required');
-    if (!bkCols.length) throw new Error('select_at_least_one_business_key');
-    const r = await fetch(`${getApiBase()}/api/dw/validate-bks`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...currentConnectionPayload(), dimName, bks: bkCols.join(',') })
-    });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_validate_bks_failed');
-    els.dwStatus.textContent = `BK check — null rows: ${j.nullRows}, duplicate rows: ${j.duplicateRows}`;
-  } catch (e) {
-    els.dwStatus.textContent = `Error: ${e.message}`;
-  }
-});
-
-els.dwCreateDimBtn.addEventListener('click', async () => {
-  try {
-    const dimName = els.dwDimName.value.trim();
-    const bkCols = selectedDwBks();
-    if (!dimName) throw new Error('dim_name_required');
-    if (!bkCols.length) throw new Error('select_at_least_one_business_key');
-
-    const payload = {
-      ...currentConnectionPayload(),
-      dimName,
       bks: bkCols.join(','),
-      sourceTable: els.dwSourceTable.value,
     };
-    const r = await fetch(`${getApiBase()}/api/dw/build-dim-auto`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+
+    const viewRes = await fetch(`${getApiBase()}/api/dw/create-dim-view`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        ...basePayload,
+        viewName: dimName,
+      })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'dw_build_dim_auto_failed');
-    els.dwStatus.textContent = `Created dim.${dimName} using BKs: ${bkCols.join(', ')}`;
+    const viewJson = await viewRes.json();
+    if (!viewJson.ok) throw new Error(viewJson.error || 'dw_create_dim_view_failed');
+
+    const valRes = await fetch(`${getApiBase()}/api/dw/validate-bks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(basePayload)
+    });
+    const valJson = await valRes.json();
+    if (!valJson.ok) throw new Error(valJson.error || 'dw_validate_bks_failed');
+    if (valJson.nullRows > 0 || valJson.duplicateRows > 0) {
+      throw new Error(`bk_quality_failed(nulls=${valJson.nullRows},dups=${valJson.duplicateRows})`);
+    }
+
+    const dimRes = await fetch(`${getApiBase()}/api/dw/build-dim-auto`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(basePayload)
+    });
+    const dimJson = await dimRes.json();
+    if (!dimJson.ok) throw new Error(dimJson.error || 'dw_build_dim_auto_failed');
+
+    els.dwStatus.textContent = `Created dim.v_${dimName} and dim.${dimName} (BK: ${bkCols.join(', ')})`;
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }

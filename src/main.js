@@ -82,8 +82,11 @@ const els = {
   dwColumnsGrid: document.getElementById('dwColumnsGrid'),
   dwSelectAllColsBtn: document.getElementById('dwSelectAllColsBtn'),
   dwDeselectAllColsBtn: document.getElementById('dwDeselectAllColsBtn'),
+  dwPreviewBtn: document.getElementById('dwPreviewBtn'),
   dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
   dwRefreshBksBtn: document.getElementById('dwRefreshBksBtn'),
+  dwValidateBksBtn: document.getElementById('dwValidateBksBtn'),
+  dwPreviewMeta: document.getElementById('dwPreviewMeta'),
   dwBkPicker: document.getElementById('dwBkPicker'),
   dwCreateDimBtn: document.getElementById('dwCreateDimBtn'),
   dwStatus: document.getElementById('dwStatus'),
@@ -591,6 +594,33 @@ els.dwDeselectAllColsBtn.addEventListener('click', () => {
   bindDwGridInputs();
 });
 
+els.dwPreviewBtn.addEventListener('click', async () => {
+  try {
+    const columns = selectedDwMappings();
+    if (!columns.length) throw new Error('select_at_least_one_column');
+    const payload = {
+      ...currentConnectionPayload(),
+      sourceTable: els.dwSourceTable.value,
+      whereClause: els.dwWhere.value.trim() || null,
+      columns,
+    };
+    const r = await fetch(`${getApiBase()}/api/dw/preview-view`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_preview_failed');
+    els.dwPreviewMeta.textContent = `Preview rows: ${j.rows.length}`;
+    transformedRows = j.rows || [];
+    columnsSignature = '';
+    syncChartSelectors(getColumns(transformedRows));
+    renderTable(transformedRows);
+    renderChart(transformedRows);
+    setView('visual');
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
 els.dwCreateViewBtn.addEventListener('click', async () => {
   try {
     const dimName = els.dwDimName.value.trim();
@@ -625,6 +655,24 @@ els.dwRefreshBksBtn.addEventListener('click', () => {
   els.dwStatus.textContent = `Refreshed BK choices (${dwViewColumns.length} columns)`;
 });
 
+els.dwValidateBksBtn.addEventListener('click', async () => {
+  try {
+    const dimName = els.dwDimName.value.trim();
+    const bkCols = selectedDwBks();
+    if (!dimName) throw new Error('dim_name_required');
+    if (!bkCols.length) throw new Error('select_at_least_one_business_key');
+    const r = await fetch(`${getApiBase()}/api/dw/validate-bks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...currentConnectionPayload(), dimName, bks: bkCols.join(',') })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_validate_bks_failed');
+    els.dwStatus.textContent = `BK check — null rows: ${j.nullRows}, duplicate rows: ${j.duplicateRows}`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
 els.dwCreateDimBtn.addEventListener('click', async () => {
   try {
     const dimName = els.dwDimName.value.trim();
@@ -651,21 +699,32 @@ els.dwCreateDimBtn.addEventListener('click', async () => {
 
 els.connectDbBtn.addEventListener('click', async () => {
   try {
-    els.dbStatus.textContent = 'Connecting...';
+    els.dbStatus.textContent = 'Testing connection...';
+    const test = await fetch(`${getApiBase()}/api/db/connect-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentConnectionPayload()),
+    });
+    const tj = await test.json();
+    if (!tj.ok) throw new Error(tj.error || 'connect_failed');
+
+    els.dbStatus.textContent = 'Connected. Loading metadata...';
+    setConnectionCollapsed(true);
+
     const r = await fetch(`${getApiBase()}/api/db/introspect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentConnectionPayload()),
     });
     const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'connect_failed');
+    if (!j.ok) throw new Error(j.error || 'introspect_failed');
+
     const star = j.star || { facts: [], dimensions: [], relationships: [] };
     starTables = j.tables || [];
     starMeta = star;
     els.dbStatus.textContent = `Connected: ${j.tables.length} tables`;
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
-    setConnectionCollapsed(true);
     try { await loadDwStgTables(); } catch {}
     if (star.relationships?.length) {
       const rel = star.relationships[0];

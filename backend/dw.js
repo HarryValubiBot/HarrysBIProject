@@ -3,6 +3,7 @@ function safePart(x) {
   return x;
 }
 function q(name) { return `[${safePart(name)}]`; }
+export { safePart };
 
 export function buildDimViewSql({ viewName, sourceTable, columns, whereClause }) {
   const v = safePart(viewName);
@@ -22,6 +23,29 @@ export function buildDimViewSql({ viewName, sourceTable, columns, whereClause })
 export function buildGenerateDimExecSql({ generatorProc = 'dbo.GenerateT1Dimension', viewName }) {
   const base = safePart(viewName).replace(/^v_/, '');
   return `EXEC ${generatorProc} @SourceSchema='dim', @SourceView='v_${base}', @TargetSchema='dim', @TargetName='${base}';`;
+}
+
+export function buildDwPreviewSql({ sourceTable, columns, whereClause }) {
+  const src = safePart(sourceTable);
+  const sel = columns.map(c => {
+    const from = q(c.from);
+    const to = c.to && c.to !== c.from ? ` AS ${q(c.to)}` : '';
+    return `${from}${to}`;
+  }).join(', ');
+  const where = whereClause ? ` WHERE ${whereClause}` : '';
+  return `SELECT TOP 100 ${sel} FROM [stg].[${src}]${where}`;
+}
+
+export function buildBkValidationSql({ dimName, bks }) {
+  const d = safePart(dimName);
+  const bkCols = String(bks || '').split(',').map(x => safePart(x.trim())).filter(Boolean);
+  if (!bkCols.length) throw new Error('bks_required');
+  const qCols = bkCols.map(c => `[${c}]`).join(', ');
+  const nullExpr = bkCols.map(c => `CASE WHEN [${c}] IS NULL THEN 1 ELSE 0 END`).join(' + ');
+  return {
+    nullsSql: `SELECT COUNT(1) AS null_rows FROM [dim].[v_${d}] WHERE (${nullExpr}) > 0`,
+    dupSql: `SELECT COUNT(1) AS duplicate_rows FROM (SELECT ${qCols}, COUNT(1) cnt FROM [dim].[v_${d}] GROUP BY ${qCols} HAVING COUNT(1) > 1) t`,
+  };
 }
 
 export function buildT1DimensionProcSql({

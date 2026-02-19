@@ -1,8 +1,8 @@
 import http from 'node:http';
 import { detectStarSchema } from './star.js';
 import { buildAggregateSql } from './query.js';
-import { introspectConnection, runQueryConnection, runExecConnection, listStgTablesConnection, listStgColumnsConnection } from './engine.js';
-import { buildDimViewSql, buildGenerateDimExecSql, buildT1DimensionProcSql } from './dw.js';
+import { introspectConnection, runQueryConnection, runExecConnection, listStgTablesConnection, listStgColumnsConnection, testConnection } from './engine.js';
+import { buildDimViewSql, buildGenerateDimExecSql, buildT1DimensionProcSql, buildDwPreviewSql, buildBkValidationSql } from './dw.js';
 
 function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -54,6 +54,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.url === '/api/health') return json(res, 200, { ok: true, service: 'harry-bi-backend' });
+
+  if (req.url === '/api/db/connect-test' && req.method === 'POST') {
+    let body = {};
+    try {
+      body = await readJson(req);
+      logRequest('CONNECT_TEST', body);
+      await testConnection(body);
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      logError('CONNECT_TEST', e, body);
+      return json(res, 400, { ok: false, error: e.message || 'connect_test_failed' });
+    }
+  }
 
   if (req.url === '/api/db/introspect' && req.method === 'POST') {
     let body = {};
@@ -118,6 +131,19 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.url === '/api/dw/preview-view' && req.method === 'POST') {
+    let body = {};
+    try {
+      body = await readJson(req);
+      const sql = buildDwPreviewSql(body);
+      const rows = await runQueryConnection(body, sql);
+      return json(res, 200, { ok: true, sql, rows });
+    } catch (e) {
+      logError('DW_PREVIEW_VIEW', e, body);
+      return json(res, 400, { ok: false, error: e.message || 'dw_preview_failed' });
+    }
+  }
+
   if (req.url === '/api/dw/create-dim-view' && req.method === 'POST') {
     let body = {};
     try {
@@ -141,6 +167,24 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       logError('DW_GENERATE_DIM', e, body);
       return json(res, 400, { ok: false, error: e.message || 'dw_generate_dim_failed' });
+    }
+  }
+
+  if (req.url === '/api/dw/validate-bks' && req.method === 'POST') {
+    let body = {};
+    try {
+      body = await readJson(req);
+      const checks = buildBkValidationSql({ dimName: body.dimName, bks: body.bks });
+      const nullRows = await runQueryConnection(body, checks.nullsSql);
+      const dupRows = await runQueryConnection(body, checks.dupSql);
+      return json(res, 200, {
+        ok: true,
+        nullRows: Number(nullRows?.[0]?.null_rows || 0),
+        duplicateRows: Number(dupRows?.[0]?.duplicate_rows || 0),
+      });
+    } catch (e) {
+      logError('DW_VALIDATE_BKS', e, body);
+      return json(res, 400, { ok: false, error: e.message || 'dw_validate_bks_failed' });
     }
   }
 

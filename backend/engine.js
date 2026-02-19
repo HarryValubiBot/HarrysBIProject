@@ -50,3 +50,18 @@ export async function listStgColumnsConnection(payload, tableName) {
   if (type === 'azure') return listStgColumnsAzure(payload.azure || {}, tableName);
   throw new Error('stg_columns_supported_for_azure_only');
 }
+
+export async function testConnection(payload) {
+  const type = payload?.connType || 'sqlite';
+  if (type === 'sqlite') {
+    const db = openDb(payload.dbPath);
+    db.prepare('SELECT 1').all();
+    db.close();
+    return { ok: true };
+  }
+  if (type === 'azure') {
+    await queryAzure(payload.azure || {}, 'SELECT TOP 1 1 AS ok');
+    return { ok: true };
+  }
+  throw new Error('unsupported_connection_type');
+}

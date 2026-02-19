@@ -80,6 +80,8 @@ const els = {
   dwLoadColumnsBtn: document.getElementById('dwLoadColumnsBtn'),
   dwWhere: document.getElementById('dwWhere'),
   dwColumnsGrid: document.getElementById('dwColumnsGrid'),
+  dwSelectAllColsBtn: document.getElementById('dwSelectAllColsBtn'),
+  dwDeselectAllColsBtn: document.getElementById('dwDeselectAllColsBtn'),
   dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
   dwRefreshBksBtn: document.getElementById('dwRefreshBksBtn'),
   dwBkPicker: document.getElementById('dwBkPicker'),
@@ -575,6 +577,18 @@ els.dwLoadColumnsBtn.addEventListener('click', async () => {
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }
+});
+
+els.dwSelectAllColsBtn.addEventListener('click', () => {
+  dwColumns.forEach(c => { c.include = true; });
+  renderDwColumnsGrid();
+  bindDwGridInputs();
+});
+
+els.dwDeselectAllColsBtn.addEventListener('click', () => {
+  dwColumns.forEach(c => { c.include = false; });
+  renderDwColumnsGrid();
+  bindDwGridInputs();
 });
 
 els.dwCreateViewBtn.addEventListener('click', async () => {

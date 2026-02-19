@@ -26,6 +26,7 @@ const els = {
   azDatabase: document.getElementById('azDatabase'),
   azUser: document.getElementById('azUser'),
   azPassword: document.getElementById('azPassword'),
+  apiBase: document.getElementById('apiBase'),
   connectDbBtn: document.getElementById('connectDbBtn'),
   toggleConnBtn: document.getElementById('toggleConnBtn'),
   connDetails: document.getElementById('connDetails'),
@@ -252,6 +253,13 @@ function refreshForm() {
   els.actionForm.innerHTML = formFields(els.actionType.value, getColumns(rawRows));
 }
 
+function getApiBase() {
+  const manual = els.apiBase.value.trim();
+  if (manual) return manual.replace(/\/$/, '');
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:8787`;
+}
+
 function currentConnectionPayload() {
   const connType = els.connType.value;
   if (connType === 'azure') {
@@ -358,7 +366,7 @@ async function runDbReport() {
   if (!starMeta) throw new Error('connect_to_db_first');
   const rel = (starMeta.relationships || []).find(r => r.fromTable === els.factTable.value && r.toTable === els.dimTable.value);
   if (!rel) throw new Error('no_fact_dim_relationship_found');
-  const r = await fetch('http://localhost:8787/api/db/query', {
+  const r = await fetch(`${getApiBase()}/api/db/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -512,7 +520,7 @@ els.autoDbReportBtn.addEventListener('click', async () => {
 els.connectDbBtn.addEventListener('click', async () => {
   try {
     els.dbStatus.textContent = 'Connecting...';
-    const r = await fetch('http://localhost:8787/api/db/introspect', {
+    const r = await fetch(`${getApiBase()}/api/db/introspect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentConnectionPayload()),

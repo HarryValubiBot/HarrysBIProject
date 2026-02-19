@@ -24,40 +24,49 @@ export async function introspectAzure(conn) {
   const pool = await openAzurePool(conn);
   try {
     const tRes = await pool.request().query(`
-      SELECT TABLE_NAME
+      SELECT TABLE_SCHEMA, TABLE_NAME
       FROM INFORMATION_SCHEMA.TABLES
-      WHERE TABLE_TYPE='BASE TABLE' AND TABLE_SCHEMA='dbo'
-      ORDER BY TABLE_NAME
+      WHERE TABLE_TYPE='BASE TABLE'
+        AND TABLE_SCHEMA IN ('fact', 'dim', 'bridge')
+      ORDER BY TABLE_SCHEMA, TABLE_NAME
     `);
 
     const tables = [];
     for (const row of tRes.recordset) {
-      const name = row.TABLE_NAME;
+      const schema = row.TABLE_SCHEMA;
+      const table = row.TABLE_NAME;
+      const name = `${schema}.${table}`;
+
       const cRes = await pool.request()
-        .input('t', name)
+        .input('s', schema)
+        .input('t', table)
         .query(`
           SELECT c.COLUMN_NAME as name, c.DATA_TYPE as type,
                  CASE WHEN k.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END as pk
           FROM INFORMATION_SCHEMA.COLUMNS c
           LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-            ON c.TABLE_NAME = k.TABLE_NAME
+            ON c.TABLE_SCHEMA = k.TABLE_SCHEMA
+           AND c.TABLE_NAME = k.TABLE_NAME
            AND c.COLUMN_NAME = k.COLUMN_NAME
            AND k.CONSTRAINT_NAME LIKE 'PK%'
-          WHERE c.TABLE_SCHEMA='dbo' AND c.TABLE_NAME=@t
+          WHERE c.TABLE_SCHEMA=@s AND c.TABLE_NAME=@t
           ORDER BY c.ORDINAL_POSITION
         `);
 
       const fRes = await pool.request()
-        .input('t', name)
+        .input('s', schema)
+        .input('t', table)
         .query(`
-          SELECT pc.name as [from], rt.name as toTable, rc.name as [to]
+          SELECT pc.name as [from],
+                 CONCAT(SCHEMA_NAME(rt.schema_id), '.', rt.name) as toTable,
+                 rc.name as [to]
           FROM sys.foreign_keys fk
           JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
           JOIN sys.tables pt ON fkc.parent_object_id = pt.object_id
           JOIN sys.columns pc ON fkc.parent_object_id = pc.object_id AND fkc.parent_column_id = pc.column_id
           JOIN sys.tables rt ON fkc.referenced_object_id = rt.object_id
           JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
-          WHERE pt.name = @t
+          WHERE pt.name = @t AND SCHEMA_NAME(pt.schema_id) = @s
         `);
 
       tables.push({ name, columns: cRes.recordset, foreignKeys: fRes.recordset });

@@ -12,6 +12,6 @@ test('buildAggregateSql emits expected join query', () => {
     yColumn: 'amount',
     agg: 'sum',
   });
-  assert.match(sql, /SELECT d\.region_name AS label/i);
-  assert.match(sql, /SUM\(f\.amount\)/i);
+  assert.match(sql, /SELECT d\.\[region_name\] AS label/i);
+  assert.match(sql, /SUM\(f\.\[amount\]\)/i);
 });

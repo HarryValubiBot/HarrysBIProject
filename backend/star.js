@@ -1,7 +1,11 @@
 export function detectStarSchema(tables) {
   const byName = new Map(tables.map(t => [t.name, t]));
-  const dims = tables.filter(t => t.name.startsWith('dim_'));
-  const facts = tables.filter(t => t.name.startsWith('fact_'));
+  const isFact = (n) => n.startsWith('fact.') || n.startsWith('fact_');
+  const isDim = (n) => n.startsWith('dim.') || n.startsWith('dim_');
+  const isBridge = (n) => n.startsWith('bridge.') || n.startsWith('bridge_');
+
+  const dims = tables.filter(t => isDim(t.name) || isBridge(t.name));
+  const facts = tables.filter(t => isFact(t.name));
 
   const relationships = [];
   for (const f of facts) {

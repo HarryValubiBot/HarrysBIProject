@@ -354,13 +354,27 @@ function tableByName(name) {
   return starTables.find(t => t.name === name);
 }
 
+async function loadDwStgTables() {
+  const r = await fetch(`${getApiBase()}/api/dw/stg-tables`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentConnectionPayload())
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'dw_stg_tables_failed');
+  const tables = j.tables || [];
+  els.dwSourceTable.innerHTML = tables.map(t => `<option>${t}</option>`).join('');
+  if (tables.length && !els.dwDimName.value.trim()) {
+    els.dwDimName.value = tables[0];
+  }
+}
+
 refreshConnFields();
 setView('transform');
 els.connType.addEventListener('change', refreshConnFields);
 els.viewTransformBtn.addEventListener('click', () => setView('transform'));
 els.viewVisualBtn.addEventListener('click', () => setView('visual'));
-els.viewDwBtn.addEventListener('click', () => {
+els.viewDwBtn.addEventListener('click', async () => {
   setView('dw');
+  try { await loadDwStgTables(); } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
 });
 els.toggleConnBtn.addEventListener('click', () => {
   const isHidden = els.connDetails.classList.contains('hidden');
@@ -470,6 +484,7 @@ els.dwBuildAutoBtn.addEventListener('click', async () => {
   try {
     const payload = {
       ...currentConnectionPayload(),
+      sourceTable: els.dwSourceTable.value,
       dimName: els.dwDimName.value.trim(),
       bks: els.dwBks.value.trim(),
     };
@@ -478,7 +493,7 @@ els.dwBuildAutoBtn.addEventListener('click', async () => {
     });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'dw_build_dim_auto_failed');
-    els.dwStatus.textContent = `Built dim.${payload.dimName} from stg.${payload.dimName}`;
+    els.dwStatus.textContent = `Built dim.${payload.dimName} from stg.${payload.sourceTable}`;
   } catch (e) {
     els.dwStatus.textContent = `Error: ${e.message}`;
   }
@@ -501,6 +516,7 @@ els.connectDbBtn.addEventListener('click', async () => {
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
     setConnectionCollapsed(true);
+    try { await loadDwStgTables(); } catch {}
     if (star.relationships?.length) {
       const rel = star.relationships[0];
       els.factTable.value = rel.fromTable;

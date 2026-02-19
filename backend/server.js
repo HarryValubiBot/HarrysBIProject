@@ -149,12 +149,13 @@ const server = http.createServer(async (req, res) => {
     try {
       body = await readJson(req);
       const dimName = String(body.dimName || '').trim();
+      const sourceTable = String(body.sourceTable || '').trim();
       const bks = String(body.bks || '').trim();
-      if (!dimName || !bks) throw new Error('dimName_and_bks_required');
+      if (!dimName || !sourceTable || !bks) throw new Error('dimName_sourceTable_and_bks_required');
 
-      const cols = await listStgColumnsConnection(body, dimName);
+      const cols = await listStgColumnsConnection(body, sourceTable);
       const columns = cols.map(c => ({ from: c.name, to: c.name }));
-      const viewSql = buildDimViewSql({ viewName: dimName, sourceTable: dimName, columns, whereClause: null });
+      const viewSql = buildDimViewSql({ viewName: dimName, sourceTable, columns, whereClause: null });
       await runExecConnection(body, viewSql);
 
       const procSql = buildT1DimensionProcSql({

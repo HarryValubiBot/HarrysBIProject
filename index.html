@@ -146,10 +146,11 @@
 
           <div id="dwSection" class="card hidden">
             <h3>DW Mode (stg → dim)</h3>
-            <p class="tiny">Quick mode: only choose dimension name and business keys.</p>
-            <label>Dimension name (expects source table stg.&lt;name&gt;)</label><input id="dwDimName" placeholder="customer" />
+            <p class="tiny">Pick source stg table, then provide a base name. We create dim.v_&lt;name&gt; and dim.&lt;name&gt;.</p>
+            <label>Source stg table</label><select id="dwSourceTable"></select>
+            <label>Dimension base name</label><input id="dwDimName" placeholder="customer" />
             <label>Business keys (comma-separated)</label><input id="dwBks" placeholder="customer_number,company_id" />
-            <button id="dwBuildAutoBtn">Build dimension (view + utility proc)</button>
+            <button id="dwBuildAutoBtn">Create dimension</button>
             <div id="dwStatus" class="tiny" style="margin-top:6px;">DW idle.</div>
           </div>
 

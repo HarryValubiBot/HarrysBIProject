@@ -394,7 +394,11 @@ async function loadDwStgTables() {
   if (!j.ok) throw new Error(j.error || 'dw_stg_tables_failed');
   const tables = j.tables || [];
   els.dwSourceTable.innerHTML = tables.map(t => `<option>${t}</option>`).join('');
-  if (tables.length && !els.dwDimName.value.trim()) els.dwDimName.value = tables[0];
+  if (tables.length) {
+    els.dwSourceTable.value = tables[0];
+    if (!els.dwDimName.value.trim()) els.dwDimName.value = tables[0];
+    await loadDwColumns();
+  }
 }
 
 function renderDwColumnsGrid() {
@@ -706,7 +710,7 @@ els.connectDbBtn.addEventListener('click', async () => {
     els.dbStatus.textContent = `Connected: ${j.tables.length} tables`;
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
-    try { await loadDwStgTables(); } catch {}
+    try { await loadDwStgTables(); } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
     if (star.relationships?.length) {
       const rel = star.relationships[0];
       els.factTable.value = rel.fromTable;

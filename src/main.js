@@ -68,8 +68,19 @@ const els = {
   maxPoints: document.getElementById('maxPoints'),
   viewTransformBtn: document.getElementById('viewTransformBtn'),
   viewVisualBtn: document.getElementById('viewVisualBtn'),
+  viewDwBtn: document.getElementById('viewDwBtn'),
   transformSection: document.getElementById('transformSection'),
   visualSection: document.getElementById('visualSection'),
+  dwSection: document.getElementById('dwSection'),
+  dwSourceTable: document.getElementById('dwSourceTable'),
+  dwLoadColumnsBtn: document.getElementById('dwLoadColumnsBtn'),
+  dwViewName: document.getElementById('dwViewName'),
+  dwWhere: document.getElementById('dwWhere'),
+  dwColumnsMap: document.getElementById('dwColumnsMap'),
+  dwCreateViewBtn: document.getElementById('dwCreateViewBtn'),
+  dwGenerateDimBtn: document.getElementById('dwGenerateDimBtn'),
+  dwGeneratorProc: document.getElementById('dwGeneratorProc'),
+  dwStatus: document.getElementById('dwStatus'),
 };
 
 function getColumns(rows) {
@@ -284,10 +295,14 @@ function refreshConnFields() {
 
 function setView(mode) {
   const transform = mode === 'transform';
+  const visual = mode === 'visual';
+  const dw = mode === 'dw';
   els.transformSection.classList.toggle('hidden', !transform);
-  els.visualSection.classList.toggle('hidden', transform);
+  els.visualSection.classList.toggle('hidden', !visual);
+  els.dwSection.classList.toggle('hidden', !dw);
   els.viewTransformBtn.classList.toggle('active', transform);
-  els.viewVisualBtn.classList.toggle('active', !transform);
+  els.viewVisualBtn.classList.toggle('active', visual);
+  els.viewDwBtn.classList.toggle('active', dw);
 }
 
 function setConnectionCollapsed(collapsed) {
@@ -342,6 +357,22 @@ function applyReportConfig(cfg) {
 
 function tableByName(name) {
   return starTables.find(t => t.name === name);
+}
+
+function parseDwColumnsMap(text) {
+  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(line => {
+    const [from, to] = line.split(':').map(x => x.trim());
+    return { from, to: to || from };
+  });
+}
+
+async function loadDwStgTables() {
+  const r = await fetch(`${getApiBase()}/api/dw/stg-tables`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentConnectionPayload())
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'dw_stg_tables_failed');
+  els.dwSourceTable.innerHTML = (j.tables || []).map(t => `<option>${t}</option>`).join('');
 }
 
 function populateModelSelectors() {
@@ -413,6 +444,10 @@ setView('transform');
 els.connType.addEventListener('change', refreshConnFields);
 els.viewTransformBtn.addEventListener('click', () => setView('transform'));
 els.viewVisualBtn.addEventListener('click', () => setView('visual'));
+els.viewDwBtn.addEventListener('click', async () => {
+  setView('dw');
+  try { await loadDwStgTables(); } catch (e) { els.dwStatus.textContent = `Error: ${e.message}`; }
+});
 els.toggleConnBtn.addEventListener('click', () => {
   const isHidden = els.connDetails.classList.contains('hidden');
   setConnectionCollapsed(!isHidden);
@@ -517,6 +552,59 @@ els.autoDbReportBtn.addEventListener('click', async () => {
   }
 });
 
+els.dwLoadColumnsBtn.addEventListener('click', async () => {
+  try {
+    const r = await fetch(`${getApiBase()}/api/dw/stg-columns`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...currentConnectionPayload(), sourceTable: els.dwSourceTable.value })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_stg_columns_failed');
+    els.dwColumnsMap.value = (j.columns || []).map(c => `${c.name}:${c.name}`).join('\n');
+    els.dwStatus.textContent = `Loaded ${j.columns.length} columns`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
+els.dwCreateViewBtn.addEventListener('click', async () => {
+  try {
+    const payload = {
+      ...currentConnectionPayload(),
+      viewName: els.dwViewName.value.trim(),
+      sourceTable: els.dwSourceTable.value,
+      whereClause: els.dwWhere.value.trim() || null,
+      columns: parseDwColumnsMap(els.dwColumnsMap.value),
+    };
+    const r = await fetch(`${getApiBase()}/api/dw/create-dim-view`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_create_dim_view_failed');
+    els.dwStatus.textContent = `Created dim.v_${payload.viewName}`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
+els.dwGenerateDimBtn.addEventListener('click', async () => {
+  try {
+    const payload = {
+      ...currentConnectionPayload(),
+      viewName: els.dwViewName.value.trim(),
+      generatorProc: els.dwGeneratorProc.value.trim() || 'dbo.GenerateT1Dimension',
+    };
+    const r = await fetch(`${getApiBase()}/api/dw/generate-dim`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'dw_generate_dim_failed');
+    els.dwStatus.textContent = `Generated dim.${payload.viewName.replace(/^v_/, '')}`;
+  } catch (e) {
+    els.dwStatus.textContent = `Error: ${e.message}`;
+  }
+});
+
 els.connectDbBtn.addEventListener('click', async () => {
   try {
     els.dbStatus.textContent = 'Connecting...';
@@ -534,6 +622,7 @@ els.connectDbBtn.addEventListener('click', async () => {
     els.starSummary.innerHTML = `Facts: ${star.facts.join(', ') || '(none)'}<br/>Dimensions: ${star.dimensions.join(', ') || '(none)'}<br/>Relationships: ${star.relationships.length}`;
     populateModelSelectors();
     setConnectionCollapsed(true);
+    try { await loadDwStgTables(); } catch {}
     if (star.relationships?.length) {
       const rel = star.relationships[0];
       els.factTable.value = rel.fromTable;

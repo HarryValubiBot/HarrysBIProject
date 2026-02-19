@@ -106,6 +106,7 @@
         <div class="viewbar">
           <button id="viewTransformBtn" class="active">Transform</button>
           <button id="viewVisualBtn" class="secondary">Visualize</button>
+          <button id="viewDwBtn" class="secondary">DW Mode</button>
         </div>
         <div class="top">
           <div class="card">
@@ -141,6 +142,22 @@
               <span id="pageInfo" class="tiny">Page 1</span>
               <button id="nextPageBtn" class="secondary">Next</button>
             </div>
+          </div>
+
+          <div id="dwSection" class="card hidden">
+            <h3>DW Mode (stg → dim)</h3>
+            <label>Source stg table</label><select id="dwSourceTable"></select>
+            <button id="dwLoadColumnsBtn" class="secondary">Load columns</button>
+            <label>Dimension view name (without v_)</label><input id="dwViewName" placeholder="customer" />
+            <label>Filter (SQL WHERE, optional)</label><input id="dwWhere" placeholder="is_deleted = 0" />
+            <label>Columns mapping (one per line: source:target)</label>
+            <textarea id="dwColumnsMap" rows="8" style="width:100%;box-sizing:border-box;background:#0f1420;color:#f6f7fb;border:1px solid #323c52;border-radius:8px;padding:8px;"></textarea>
+            <div class="row">
+              <button id="dwCreateViewBtn">Create dim.v_ view</button>
+              <button id="dwGenerateDimBtn" class="secondary">Generate dim table</button>
+            </div>
+            <label>Generator stored procedure</label><input id="dwGeneratorProc" value="dbo.GenerateT1Dimension" />
+            <div id="dwStatus" class="tiny" style="margin-top:6px;">DW idle.</div>
           </div>
 
           <div id="visualSection" class="card hidden">

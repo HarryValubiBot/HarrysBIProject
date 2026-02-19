@@ -87,4 +87,38 @@ export async function queryAzure(conn, sqlText) {
   }
 }
 
+export async function execAzure(conn, sqlText) {
+  const pool = await openAzurePool(conn);
+  try {
+    await pool.request().query(sqlText);
+    return { ok: true };
+  } finally {
+    await pool.close();
+  }
+}
+
+export async function listStgTablesAzure(conn) {
+  return queryAzure(conn, `
+    SELECT TABLE_NAME as name
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_TYPE='BASE TABLE' AND TABLE_SCHEMA='stg'
+    ORDER BY TABLE_NAME
+  `);
+}
+
+export async function listStgColumnsAzure(conn, tableName) {
+  const pool = await openAzurePool(conn);
+  try {
+    const out = await pool.request().input('t', tableName).query(`
+      SELECT COLUMN_NAME as name, DATA_TYPE as type
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA='stg' AND TABLE_NAME=@t
+      ORDER BY ORDINAL_POSITION
+    `);
+    return out.recordset;
+  } finally {
+    await pool.close();
+  }
+}
+
 export { normalizeAzureConfig };

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Name>Test DW Project_feature_full_warehouse_test</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>4.1</ProjectVersion>
+    <ProjectGuid>{0}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql150DatabaseSchemaProvider</DSP>
+    <OutputType>Database</OutputType>
+    <RootNamespace>Test DW Project_feature_full_warehouse_test</RootNamespace>
+    <AssemblyName>Test DW Project_feature_full_warehouse_test</AssemblyName>
+    <ModelCollation>1033,CI</ModelCollation>
+    <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
+    <DeployToDatabase>True</DeployToDatabase>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetLanguage>CS</TargetLanguage>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <SqlServerVerification>False</SqlServerVerification>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <Build Include="Security/stg.sql" />
+    <Build Include="Security/dim.sql" />
+    <Build Include="Security/switch.sql" />
+    <Build Include="Security/temp.sql" />
+    <Build Include="Security/fact.sql" />
+    <Build Include="Security/utility.sql" />
+    <Build Include="Security/KeyVault.sql" />
+    <Build Include="Tables/dim.DimTestProduct.sql" />
+    <Build Include="Tables/dim.DimProduct.sql" />
+    <Build Include="Tables/dim.DimDate.sql" />
+    <Build Include="Tables/stg.ProductCategories.sql" />
+    <Build Include="Tables/stg.Products.sql" />
+    <Build Include="Tables/stg.Customers.sql" />
+    <Build Include="Tables/stg.Stores.sql" />
+    <Build Include="Tables/stg.Employees.sql" />
+    <Build Include="Tables/stg.Sales.sql" />
+    <Build Include="Tables/KeyVault.SurrogateKeys.sql" />
+    <Build Include="Views/dim.v_DimTestProduct.sql" />
+    <Build Include="Views/dim.v_DimProduct.sql" />
+    <Build Include="Views/dim.v_DimDate.sql" />
+    <Build Include="Views/dim.v_DimTestSimple.sql" />
+    <Build Include="StoredProcedures/utility.sp_create_T1_dimension_view_based_proc.sql" />
+    <Build Include="StoredProcedures/dim.sp_DimTestProduct.sql" />
+    <Build Include="StoredProcedures/dim.sp_DimProduct.sql" />
+    <Build Include="StoredProcedures/dim.sp_DimDate.sql" />
+  </ItemGroup>
+</Project>

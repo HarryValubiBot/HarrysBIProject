@@ -1,0 +1,2 @@
+CREATE   PROCEDURE [dim].[sp_DimDate] AS BEGIN SET NOCOUNT ON; TRUNCATE TABLE [dim].[DimDate]; INSERT INTO [dim].[DimDate] ([Date], [Year], [Month], [Day], [Quarter], [MonthName], [DayOfWeek], [WeekOfYear]) SELECT [Date], [Year], [Month], [Day], [Quarter], [MonthName], [DayOfWeek], [WeekOfYear] FROM [dim].[v_DimDate]; UPDATE KeyVault.SurrogateKeys SET MaxKey = ISNULL((SELECT MAX(SK_DimDate) FROM [dim].[DimDate]), 0) WHERE TableName = 'dim.DimDate'; END
+GO

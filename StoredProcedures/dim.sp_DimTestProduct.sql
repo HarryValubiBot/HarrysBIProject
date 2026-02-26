@@ -1,0 +1,2 @@
+CREATE   PROCEDURE [dim].[sp_DimTestProduct] AS BEGIN SET NOCOUNT ON; TRUNCATE TABLE [dim].[DimTestProduct]; INSERT INTO [dim].[DimTestProduct] ([ProductKey], [ProductName], [Brand]) SELECT [ProductKey], [ProductName], [Brand] FROM [dim].[v_DimTestProduct]; UPDATE KeyVault.SurrogateKeys SET MaxKey = ISNULL((SELECT MAX(SK_DimTestProduct) FROM [dim].[DimTestProduct]), 0) WHERE TableName = 'dim.DimTestProduct'; END
+GO

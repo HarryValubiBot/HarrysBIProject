@@ -1,6 +1,6 @@
 CREATE   VIEW [dim].[v_Product] AS SELECT
   ProductNo AS [ProductNo],
-  COALESCE(ProductName, 'Unknown') AS [ProductName]
+  COALESCE(ProductName, '') AS [ProductName]
 FROM
-  stg.Products
+  stg.products
 GO

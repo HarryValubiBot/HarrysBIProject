@@ -19,10 +19,10 @@
         END
 
         INSERT INTO [dim].[Date]
-            ([SK_Date], [Date], [DW_Created], [DW_Updated])
+            ([SK_Date], [Date], [Year], [Quarter], [Month], [Day], [DW_Created], [DW_Updated])
         SELECT
             @MaxSK + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
-            src.[Date],
+            src.[Date], src.[Year], src.[Quarter], src.[Month], src.[Day],
             GETDATE(), GETDATE()
         FROM [dim].[v_Date] src
         WHERE NOT EXISTS (
@@ -30,7 +30,7 @@
             WHERE t.[Date] = src.[Date]
         );
 
-        UPDATE t SET t.[DW_Updated] = GETDATE()
+        UPDATE t SET t.[Year] = src.[Year], t.[Quarter] = src.[Quarter], t.[Month] = src.[Month], t.[Day] = src.[Day], t.[DW_Updated] = GETDATE()
         FROM [dim].[Date] t
         INNER JOIN [dim].[v_Date] src ON t.[Date] = src.[Date];
 

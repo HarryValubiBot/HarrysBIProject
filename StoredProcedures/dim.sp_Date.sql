@@ -19,20 +19,20 @@
         END
 
         INSERT INTO [dim].[Date]
-            ([SK_Date], [DateKey], [Year], [Month], [Day], [DW_Created], [DW_Updated])
+            ([SK_Date], [Date], [DW_Created], [DW_Updated])
         SELECT
             @MaxSK + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)),
-            src.[DateKey], src.[Year], src.[Month], src.[Day],
+            src.[Date],
             GETDATE(), GETDATE()
         FROM [dim].[v_Date] src
         WHERE NOT EXISTS (
             SELECT 1 FROM [dim].[Date] t
-            WHERE t.[DateKey] = src.[DateKey]
+            WHERE t.[Date] = src.[Date]
         );
 
-        UPDATE t SET t.[Year] = src.[Year], t.[Month] = src.[Month], t.[Day] = src.[Day], t.[DW_Updated] = GETDATE()
+        UPDATE t SET t.[DW_Updated] = GETDATE()
         FROM [dim].[Date] t
-        INNER JOIN [dim].[v_Date] src ON t.[DateKey] = src.[DateKey];
+        INNER JOIN [dim].[v_Date] src ON t.[Date] = src.[Date];
 
         UPDATE [KeyVault].[SurrogateKeys]
         SET MaxKey = ISNULL(
